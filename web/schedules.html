@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WAN Studio — Agendamento</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: system-ui, sans-serif; background: #0e1116; color: #e6edf3; margin: 0; }
+    .wrap { max-width: 920px; margin: 4vh auto; padding: 0 16px; }
+    a { color: #58a6ff; }
+    input, button, select { padding: 8px; border-radius: 8px; border: 1px solid #30363d; background: #161b22; color: #e6edf3; font: inherit; }
+    button { background: #238636; border-color: #238636; cursor: pointer; font-weight: 600; }
+    button.ghost { background: #21262d; border-color: #30363d; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; margin: 12px 0; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .muted { color: #8b949e; font-size: .9rem; }
+    .pill { font-size:.72rem; padding:1px 8px; border-radius:999px; border:1px solid #30363d; }
+    label { font-size:.85rem; display:flex; flex-direction:column; gap:2px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p><a href="/">← painel</a></p>
+    <h1>Agendamento (novela)</h1>
+    <p class="muted">Agende a geração de jobs no tempo. O <code>wan-cron</code> avalia os schedules a cada minuto; o <code>stagger</code> espaça os jobs e o <code>max_fila</code> evita inundar a fila.</p>
+
+    <div class="card row">
+      <label>Projeto <select id="proj"></select></label>
+    </div>
+
+    <div class="card">
+      <strong>Novo agendamento</strong>
+      <div class="row" style="margin-top:8px">
+        <label>nome <input id="s-nome" placeholder="ex.: episódio 1" /></label>
+        <label>tipo <select id="s-tipo"><option value="once">uma vez</option><option value="interval">intervalo</option></select></label>
+        <label>início <input id="s-inicio" type="datetime-local" /></label>
+        <label>cada (min) <input id="s-cada" type="number" min="1" placeholder="só intervalo" style="width:110px" /></label>
+      </div>
+      <div class="row">
+        <label>cenas (ids, vírgula — vazio = todas) <input id="s-cenas" placeholder="ex.: 3,4,5" /></label>
+        <label>stagger (min) <input id="s-stagger" type="number" min="0" value="0" style="width:90px" /></label>
+        <label>max fila <input id="s-maxfila" type="number" min="1" placeholder="opcional" style="width:90px" /></label>
+        <button id="btn-add">Agendar</button>
+      </div>
+      <div id="add-msg" class="muted"></div>
+    </div>
+
+    <div id="lista"></div>
+  </div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const api = (u, o) => fetch(u, o).then(async (r) => { const b = r.headers.get('content-type')?.includes('json') ? await r.json() : null; if (!r.ok) throw Object.assign(new Error(), { status: r.status, b }); return b; });
+
+    async function init() {
+      const projetos = await api('/api/projects');
+      $('#proj').innerHTML = projetos.map((p) => `<option value="${p.id}">#${p.id} ${p.nome}</option>`).join('');
+      $('#proj').onchange = load;
+      if (projetos.length) load();
+    }
+    async function load() {
+      const pid = $('#proj').value;
+      const items = await api(`/api/projects/${pid}/schedules`);
+      $('#lista').innerHTML = '<div class="card"><strong>Agendamentos</strong>' +
+        (items.length ? '' : '<p class="muted">nenhum</p>') +
+        items.map((s) => {
+          const r = s.regra || {};
+          const desc = r.tipo === 'interval' ? `a cada ${r.cada_min}min desde ${new Date(r.inicio).toLocaleString()}` : `uma vez em ${new Date(r.inicio).toLocaleString()}`;
+          return `<div style="border-top:1px solid #21262d;padding:8px 0">
+            <div class="row" style="justify-content:space-between">
+              <span><strong>${s.nome || 'sem nome'}</strong> <span class="pill">${s.ativo ? 'ativo' : 'pausado'}</span></span>
+              <span class="row">
+                <button class="ghost" data-run="${s.id}">rodar agora</button>
+                <button class="ghost" data-toggle="${s.id}" data-ativo="${s.ativo ? 1 : 0}">${s.ativo ? 'pausar' : 'ativar'}</button>
+                <button class="ghost" data-del="${s.id}">excluir</button>
+              </span>
+            </div>
+            <div class="muted">${desc} · cenas: ${(r.scene_ids && r.scene_ids.length) ? r.scene_ids.join(',') : 'todas'} · stagger ${r.stagger_min || 0}min ${r.max_fila ? '· max fila ' + r.max_fila : ''}</div>
+            <div class="muted">último: ${s.ultimo_run ? new Date(s.ultimo_run).toLocaleString() : '—'} · próximo: ${s.proximo_run ? new Date(s.proximo_run).toLocaleString() : '—'}</div>
+            <div class="muted" id="run-${s.id}"></div>
+          </div>`;
+        }).join('') + '</div>';
+      document.querySelectorAll('[data-run]').forEach((b) => b.onclick = async () => {
+        try { const r = await api(`/api/schedules/${b.dataset.run}/run-now`, { method: 'POST' }); $('#run-' + b.dataset.run).textContent = `${r.criados} jobs gerados.`; }
+        catch (e) { $('#run-' + b.dataset.run).textContent = e.b?.detalhe || 'nada gerado'; }
+        load();
+      });
+      document.querySelectorAll('[data-toggle]').forEach((b) => b.onclick = async () => { await api('/api/schedules/' + b.dataset.toggle, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ativo: b.dataset.ativo !== '1' }) }); load(); });
+      document.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => { if (confirm('Excluir agendamento?')) { await api('/api/schedules/' + b.dataset.del, { method: 'DELETE' }); load(); } });
+    }
+    $('#btn-add').onclick = async () => {
+      const inicioRaw = $('#s-inicio').value;
+      if (!inicioRaw) { $('#add-msg').textContent = 'informe o início'; return; }
+      const regra = {
+        tipo: $('#s-tipo').value,
+        inicio: new Date(inicioRaw).toISOString(),
+        stagger_min: Number($('#s-stagger').value || 0),
+      };
+      if (regra.tipo === 'interval') regra.cada_min = Number($('#s-cada').value || 0);
+      const cenas = $('#s-cenas').value.trim();
+      if (cenas) regra.scene_ids = cenas.split(',').map((x) => Number(x.trim())).filter(Boolean);
+      if ($('#s-maxfila').value) regra.max_fila = Number($('#s-maxfila').value);
+      try {
+        await api(`/api/projects/${$('#proj').value}/schedules`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nome: $('#s-nome').value || undefined, regra }) });
+        $('#add-msg').textContent = 'agendado'; $('#s-nome').value = ''; load();
+      } catch (e) { $('#add-msg').textContent = 'falha: ' + JSON.stringify(e.b?.detalhe || e.b?.error || ''); }
+    };
+    fetch('/api/auth/me').then((r) => { if (!r.ok) location.href = '/'; else init(); });
+  </script>
+</body>
+</html>

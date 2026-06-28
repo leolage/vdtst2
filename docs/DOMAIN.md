@@ -37,3 +37,18 @@ Para iterar, **reenvie com ajustes** (`POST /api/jobs/:id/resubmit`): você muda
 pesos de LoRA, frames/fps ou troca a imagem, e o sistema cria um **novo job** (o original e
 sua nota ficam preservados no catálogo). A fusão base+overrides é pura e testada em
 `src/domain/effective.ts`.
+
+## Agendamento (novela)
+Um **schedule** por projeto descreve quando gerar jobs. Regra (`regra_json`):
+- `tipo`: `once` (uma vez em `inicio`) ou `interval` (a cada `cada_min` desde `inicio`);
+- `scene_ids`: cenas-alvo (vazio = todas as cenas do projeto);
+- `stagger_min`: espaça os jobs gerados no tempo (via `jobs.agendado_para`), evitando
+  inundar a fila — eles vão sendo liberados aos poucos;
+- `max_fila`: se a fila já tem ≥ esse número de `queued`, o schedule espera o próximo tick.
+
+O `wan-cron` avalia os schedules **a cada minuto** (`evaluateSchedules`) e o worker só pega
+jobs cujo `agendado_para` já chegou. Lógica pura (`deveRodar`, `proximoRun`, `staggerTimes`)
+testada em `test/schedule.test.ts`. Botão **"rodar agora"** dispara um schedule na hora.
+
+> Continuidade automática entre segmentos (último frame → input do próximo) segue como
+> refinamento no roadmap; o encadeamento por **frame golden** já cobre isso manualmente.

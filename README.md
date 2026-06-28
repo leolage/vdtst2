@@ -41,9 +41,11 @@ Tunnel para acesso externo · nós ComfyUI remotos via SSH · systemd · nginx l
 - **Fase 6** — agente LLM (Claude tool-use) que dispara/retry/reprioriza jobs e
   pausa/reinicia nós, com **allowlist de ações validada em código** (nunca toca conteúdo)
   e auditoria; health dos nós determinístico.
+- **Fase 7** — agendamento "novela": schedules por projeto (uma vez/intervalo), geração de
+  jobs no tempo com `stagger` e teto de fila, avaliados pelo `wan-cron` a cada minuto.
 
-Próxima: **Fase 7** (agendamento automático estilo novela).
-Detalhes em `docs/ARCHITECTURE.md`.
+**As 7 fases do roadmap estão completas.** Próximos passos em `docs/ROADMAP.md`
+(geração com Flux, observabilidade, pós-processamento, encadeamento automático de segmentos…).
 
 ### Desenvolvimento do frontend
 `npm run dev:ui` sobe o Vite (proxy de `/api` para `127.0.0.1:3000`); `npm run build:ui`

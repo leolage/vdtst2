@@ -14,6 +14,7 @@ import { sceneRoutes } from './routes/scenes.js';
 import { imageRoutes } from './routes/images.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { nodeRoutes } from './routes/nodes.js';
+import { scheduleRoutes } from './routes/schedules.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -63,6 +64,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(imageRoutes, { prefix: '/api' });
   await app.register(catalogRoutes, { prefix: '/api' });
   await app.register(nodeRoutes, { prefix: '/api' });
+  await app.register(scheduleRoutes, { prefix: '/api' });
 
   // mídia das saídas (vídeos/frames) — sob /api/media, protegida pela sessão
   await app.register(fastifyStatic, {

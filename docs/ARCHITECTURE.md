@@ -158,4 +158,5 @@ Resumo (detalhe em [WORKFLOW-BINDING.md](./WORKFLOW-BINDING.md)):
    promoção; mídia servida sob `/api/media` (protegida pela sessão).
 6. **Agente LLM** ✅ — loop de decisão (Claude tool-use), allowlist de ações validada em
    código, health determinístico dos nós, auditoria em `agent_decisions`.
-7. **Agendamento** — regras de schedule, disparo automático.
+7. **Agendamento** ✅ — schedules por projeto (uma vez / intervalo), geração no tempo com
+   `stagger` (espaçamento) e `max_fila` (teto), avaliados pelo `wan-cron` a cada minuto.
