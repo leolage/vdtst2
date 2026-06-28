@@ -101,6 +101,34 @@ contexto do agente. Ver [AGENT-GUARDRAILS.md](./AGENT-GUARDRAILS.md).
   job fica `blocked` com motivo claro, em vez de falhar na GPU.
 - Chaves SSH guardadas **cifradas at-rest**; `ssh_key_ref` aponta para o segredo.
 
+## Armazenamento e extração de frames
+
+Cada vídeo gerado é **baixado do ComfyUI** para uma pasta estruturada na VM, e dele são
+**extraídos frames automaticamente** numa subpasta. Os frames servem para montar a
+sequência/continuidade do vídeo (ex.: último frame de um segmento alimenta o próximo).
+
+Layout (`src/shared/paths.ts`):
+
+```
+<DATA_DIR>/outputs/proj-<id>/scene-<id>/job-<id>/
+    video.mp4              vídeo final (ou do segmento)
+    segments/seg-NNN.mp4   segmentos brutos antes do stitch (opcional)
+    frames/frame-NNNN.png  frames extraídos automaticamente
+```
+
+**A extração roda no servidor ComfyUI**, que é mais parrudo que a VM do sistema
+(`FRAME_EXTRACT_ON_NODE=true`). Pipeline do worker (Fase 4):
+
+1. submeter o workflow ao nó ComfyUI (via túnel SSH);
+2. ao concluir, o vídeo está no host do ComfyUI;
+3. por **SSH**, rodar `ffmpeg` no próprio host para extrair os frames para um diretório
+   temporário (amostragem controlada por `FRAME_EXTRACT_FPS`; vazio = todos os frames);
+4. **baixar** vídeo + frames para a pasta estruturada na VM (scp/rsync sobre SSH);
+5. registrar em `outputs` (`path`, `frames_dir`, `frames_count`, `tipo`).
+
+Isso mantém o trabalho pesado de ffmpeg na GPU/CPU do servidor remoto e deixa a VM só
+com orquestração e armazenamento. (Fallback `FRAME_EXTRACT_ON_NODE=false` extrai na VM.)
+
 ## Fluxo de homologação do workflow
 
 Resumo (detalhe em [WORKFLOW-BINDING.md](./WORKFLOW-BINDING.md)):
@@ -117,7 +145,8 @@ Resumo (detalhe em [WORKFLOW-BINDING.md](./WORKFLOW-BINDING.md)):
 1. **Fundação** — TS/Fastify, Knex+migrations, login único, systemd/nginx/cloudflared, README. ← *esta fase*
 2. **Ingestão de workflow** — upload, parser, auto-detecção, tela de binding.
 3. **Domínio** — CRUD projects/scenes/prompts, biblioteca de imagens por categoria, explosão em jobs.
-4. **Multi-nó SSH + worker** — registro de nós, túnel, health, roteamento, submissão, stitch ffmpeg.
+4. **Multi-nó SSH + worker** — registro de nós, túnel, health, roteamento, submissão,
+   stitch ffmpeg, **extração de frames no nó remoto** e download para a pasta estruturada.
 5. **Galeria** — player, thumbnails, aprovar/reprovar (frontend React/Vite).
 6. **Agente LLM** — loop, tool-use, guardrails, auditoria.
 7. **Agendamento** — regras de schedule, disparo automático.

@@ -67,6 +67,9 @@ Cada servidor WAN é cadastrado com `ssh_host`, `ssh_port`, `ssh_user`, chave SS
 SSH para `nvidia-smi`, reiniciar o ComfyUI e ler logs. A chave SSH é guardada cifrada
 at-rest (`SSH_KEY_ENCRYPTION_KEY` no `.env`).
 
+A extração de frames roda no próprio servidor ComfyUI (`FRAME_EXTRACT_ON_NODE=true`),
+então **instale `ffmpeg` em cada host ComfyUI** além da VM do sistema.
+
 ## Atualizações
 ```bash
 cd /opt/wan-studio

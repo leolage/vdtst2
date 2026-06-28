@@ -29,6 +29,15 @@ export const config = {
     dataDir: process.env.DATA_DIR || '/var/lib/wan-studio',
   },
 
+  frames: {
+    // fps de amostragem dos frames extraídos; vazio = todos os frames (fps nativo).
+    extractFps: process.env.FRAME_EXTRACT_FPS ? Number(process.env.FRAME_EXTRACT_FPS) : null,
+    // formato dos frames salvos
+    format: process.env.FRAME_FORMAT || 'png',
+    // extrair no servidor ComfyUI (mais parrudo) e baixar; senão, extrair na VM
+    extractOnNode: (process.env.FRAME_EXTRACT_ON_NODE || 'true') === 'true',
+  },
+
   worker: {
     pollMs: Number(process.env.WORKER_POLL_MS || 2000),
   },
