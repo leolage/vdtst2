@@ -38,9 +38,18 @@ Pontos de design a manter em mente desde já, para não fechar a porta:
 Por enquanto é só ideia; nenhuma tabela muda agora. Quando desenvolvermos a Fase 2/3,
 seguimos esses ganchos para o suporte a Flux sair quase de graça.
 
-## Painel de observabilidade
-Métricas de throughput (vídeos/hora por nó), tempo médio por segmento, taxa de erro por
-categoria, ocupação de GPU. Gráficos na UI + export Prometheus opcional.
+## Painel de observabilidade — **entregue**
+`/metrics.html`: KPIs (vídeos/hora e /24h, taxa de erro, tempo médio por segmento, finais,
+aprovados, golden), throughput por hora, jobs por status, erros por categoria e tabela por
+servidor (status/fila/VRAM/vídeos/tempo médio). JSON em `/api/metrics/overview` e export
+**Prometheus** em `/api/metrics/prometheus`. Evoluções: retenção histórica das séries
+(hoje calcula on-the-fly) e alertas.
+
+## Modo T2V (texto-para-vídeo) — futuro
+Hoje o sistema assume **I2V** (entrada por imagem) — inclusive o encadeamento usa o input de
+imagem para a continuidade. Um modo **T2V** entra como mais um `tipo` de workflow (binding de
+imagem opcional, encadeamento desligado ou via outra forma de continuidade). O core
+(projeto/workflow/binding/jobs) já é genérico, então é uma extensão localizada.
 
 ## Resiliência e custos do agente
 - Cache de decisões repetidas para reduzir chamadas ao LLM.

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WAN Studio — Observabilidade</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: system-ui, sans-serif; background: #0e1116; color: #e6edf3; margin: 0; }
+    .wrap { max-width: 1000px; margin: 4vh auto; padding: 0 16px; }
+    a { color: #58a6ff; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; margin: 12px 0; }
+    .muted { color: #8b949e; font-size: .9rem; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: 10px; }
+    .kpi { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px; }
+    .kpi .v { font-size: 1.6rem; font-weight: 700; }
+    .kpi .l { font-size: .78rem; color: #8b949e; }
+    table { width: 100%; border-collapse: collapse; }
+    td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid #21262d; font-size: .88rem; }
+    .bar { height: 10px; background: #238636; border-radius: 4px; }
+    .barbg { background: #21262d; border-radius: 4px; overflow: hidden; }
+    .spark { display: flex; gap: 3px; align-items: flex-end; height: 70px; }
+    .spark div { flex: 1; background: #58a6ff; border-radius: 2px 2px 0 0; min-height: 2px; }
+    .err { color: #f85149; } .ok { color: #3fb950; }
+    .row { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row"><p><a href="/">← painel</a></p><span class="muted">atualiza a cada 10s · <a href="/api/metrics/prometheus">/metrics (Prometheus)</a></span></div>
+    <h1>Observabilidade</h1>
+    <div id="conteudo"><p class="muted">carregando…</p></div>
+  </div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const esc = (s) => String(s).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+
+    function kpi(v, l, cls) { return `<div class="kpi"><div class="v ${cls || ''}">${v}</div><div class="l">${l}</div></div>`; }
+
+    async function load() {
+      let o;
+      try { o = await fetch('/api/metrics/overview').then((r) => { if (!r.ok) throw 0; return r.json(); }); }
+      catch { location.href = '/'; return; }
+
+      const taxa = (o.ultimas24h.done + o.ultimas24h.error) ? Math.round(100 * o.ultimas24h.error / (o.ultimas24h.done + o.ultimas24h.error)) : 0;
+      const maxSerie = Math.max(1, ...o.serie_hora.map((s) => s.n));
+
+      const statusBars = Object.entries(o.status).map(([k, v]) => {
+        const max = Math.max(1, ...Object.values(o.status));
+        return `<tr><td>${k}</td><td style="width:60%"><div class="barbg"><div class="bar" style="width:${Math.round(100 * v / max)}%"></div></div></td><td>${v}</td></tr>`;
+      }).join('');
+
+      $('#conteudo').innerHTML = `
+        <div class="card kpis">
+          ${kpi(o.ultimaHora.done, 'vídeos / última hora', 'ok')}
+          ${kpi(o.ultimas24h.done, 'vídeos / 24h', 'ok')}
+          ${kpi(taxa + '%', 'taxa de erro 24h', taxa > 20 ? 'err' : '')}
+          ${kpi(o.duracao_media_seg != null ? o.duracao_media_seg + 's' : '—', 'tempo médio / segmento')}
+          ${kpi(o.finais, 'vídeos finais')}
+          ${kpi(o.aprovados, 'aprovados')}
+          ${kpi(o.golden, 'golden ⭐')}
+        </div>
+
+        <div class="card">
+          <strong>Throughput (vídeos/hora, últimas 24h)</strong>
+          <div class="spark" style="margin-top:8px">
+            ${o.serie_hora.length ? o.serie_hora.map((s) => `<div title="${esc(s.h)}: ${s.n}" style="height:${Math.round(100 * s.n / maxSerie)}%"></div>`).join('') : '<span class="muted">sem dados</span>'}
+          </div>
+        </div>
+
+        <div class="card">
+          <strong>Jobs por status</strong>
+          <table style="margin-top:6px">${statusBars}</table>
+        </div>
+
+        <div class="card">
+          <strong>Erros por categoria</strong>
+          <table style="margin-top:6px">
+            ${o.por_categoria.length ? o.por_categoria.map((c) => `<tr><td>${esc(c.categoria)}</td><td class="err">${c.n}</td></tr>`).join('') : '<tr><td class="muted">nenhum</td></tr>'}
+          </table>
+        </div>
+
+        <div class="card">
+          <strong>Por servidor ComfyUI</strong>
+          <table style="margin-top:6px">
+            <tr><th>nó</th><th>status</th><th>fila</th><th>VRAM livre</th><th>vídeos</th><th>tempo médio</th></tr>
+            ${o.por_no.length ? o.por_no.map((nd) => `<tr>
+              <td>${esc(nd.nome)}</td>
+              <td class="${nd.status === 'up' ? 'ok' : 'err'}">${nd.status}</td>
+              <td>${nd.queue_len}</td>
+              <td>${nd.vram_free != null ? nd.vram_free + ' / ' + (nd.vram_total ?? '?') + ' MiB' : '—'}</td>
+              <td>${nd.done}</td>
+              <td>${nd.dur_media_seg != null ? nd.dur_media_seg + 's' : '—'}</td>
+            </tr>`).join('') : '<tr><td colspan="6" class="muted">nenhum servidor cadastrado</td></tr>'}
+          </table>
+        </div>`;
+    }
+    load();
+    setInterval(load, 10000);
+  </script>
+</body>
+</html>
