@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WAN Studio — Catálogo</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: system-ui, sans-serif; background: #0e1116; color: #e6edf3; margin: 0; }
+    .wrap { max-width: 1000px; margin: 4vh auto; padding: 0 16px; }
+    a { color: #58a6ff; }
+    input, button, select, textarea { padding: 8px; border-radius: 8px; border: 1px solid #30363d; background: #161b22; color: #e6edf3; font: inherit; }
+    button { background: #238636; border-color: #238636; cursor: pointer; font-weight: 600; }
+    button.ghost { background: #21262d; border-color: #30363d; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; margin: 12px 0; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .muted { color: #8b949e; font-size: .9rem; }
+    table { width: 100%; border-collapse: collapse; }
+    td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid #21262d; font-size: .88rem; }
+    .pill { font-size:.7rem; padding:1px 6px; border-radius:999px; border:1px solid #30363d; }
+    textarea { width: 100%; min-height: 50px; }
+    .err { color:#f85149 } .ok { color:#3fb950 }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p><a href="/">← painel</a></p>
+    <h1>Catálogo & debug</h1>
+    <div class="card row">
+      <button id="tab-jobs" class="ghost">Jobs</button>
+      <button id="tab-out" class="ghost">Outputs (galeria)</button>
+      <span class="muted">o que deu certo e o que não — com reenvio ajustado</span>
+    </div>
+    <div id="lista"></div>
+    <div id="detalhe"></div>
+  </div>
+
+  <script>
+    const $ = (s, el = document) => el.querySelector(s);
+    const api = (u, o) => fetch(u, o).then(async (r) => { const b = r.headers.get('content-type')?.includes('json') ? await r.json() : null; if (!r.ok) throw Object.assign(new Error(), { status: r.status, b }); return b; });
+
+    async function verJobs() {
+      const jobs = await api('/api/jobs');
+      $('#lista').innerHTML = `<div class="card"><strong>Jobs</strong><table>
+        <tr><th>id</th><th>cena</th><th>status</th><th>nota</th><th>erro</th><th></th></tr>
+        ${jobs.map((j) => `<tr><td>${j.id}</td><td>${j.scene_id}</td>
+          <td class="${j.status === 'error' ? 'err' : j.status === 'done' ? 'ok' : ''}">${j.status}</td>
+          <td>${j.nota ?? '—'}</td><td class="muted">${j.erro_categoria ?? ''}</td>
+          <td><button class="ghost" data-detalhe="${j.id}">detalhe</button></td></tr>`).join('')}
+      </table></div>`;
+      document.querySelectorAll('[data-detalhe]').forEach((b) => b.onclick = () => verDetalhe(Number(b.dataset.detalhe)));
+    }
+
+    async function verDetalhe(id) {
+      const d = await api(`/api/jobs/${id}/detail`);
+      const e = d.effective;
+      $('#detalhe').innerHTML = `<div class="card">
+        <div class="row" style="justify-content:space-between"><strong>Detalhe do job #${id}</strong><span class="pill">${d.job.status}</span></div>
+        <p class="muted">Projeto: ${d.project?.nome ?? '—'} · Cena: ${d.scene?.nome ?? '—'} · Segmento: ${e.segmento_idx}
+          ${d.job.node_id ? '· Nó: ' + d.job.node_id : ''} ${d.job.comfy_prompt_id ? '· comfy: ' + d.job.comfy_prompt_id : ''}</p>
+        ${d.job.erro_categoria ? `<p class="err">Erro: ${d.job.erro_categoria}</p>` : ''}
+        ${d.job.output_path ? `<p>Saída: <span class="muted">${d.job.output_path}</span></p>` : ''}
+
+        <h3>Parâmetros efetivos (edite e reenvie)</h3>
+        <label>Prompt + <textarea id="o-pos">${e.texto_pos || ''}</textarea></label>
+        <label>Prompt − <textarea id="o-neg">${e.texto_neg || ''}</textarea></label>
+        <div class="row">
+          <label>frames <input id="o-frames" type="number" value="${e.frames ?? ''}" style="width:90px"></label>
+          <label>fps <input id="o-fps" type="number" value="${e.fps ?? ''}" style="width:80px"></label>
+          <label>image_id <input id="o-img" type="number" value="${e.image_id ?? ''}" style="width:90px"></label>
+        </div>
+        <label>LoRAs (nome:peso por linha)
+          <textarea id="o-loras">${(e.loras || []).map((l) => l.lora_nome + ':' + l.peso).join('\n')}</textarea></label>
+        <div class="row"><button id="btn-reenviar">Reenviar com estes ajustes</button><span id="re-msg" class="muted"></span></div>
+
+        <h3>Nota / catálogo</h3>
+        <div class="row">
+          <select id="r-nota"><option value="">sem nota</option>${[1, 2, 3, 4, 5].map((n) => `<option value="${n}" ${d.job.nota === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
+          <input id="r-obs" placeholder="observação" value="${d.job.observacao ?? ''}" style="flex:1">
+          <button id="btn-nota" class="ghost">salvar nota</button>
+        </div>
+        <details style="margin-top:10px"><summary class="muted">workflow bindings / snapshot</summary>
+          <pre class="muted" style="white-space:pre-wrap">${JSON.stringify({ bindings: d.project?.bindings, snapshot: d.job.params_snapshot }, null, 2)}</pre></details>
+      </div>`;
+
+      $('#btn-reenviar').onclick = async () => {
+        const loras = $('#o-loras').value.split('\n').map((s) => s.trim()).filter(Boolean).map((s) => { const [n, p] = s.split(':'); return { lora_nome: n.trim(), peso: Number(p ?? 1) }; });
+        const ov = { texto_pos: $('#o-pos').value, texto_neg: $('#o-neg').value || null, loras };
+        if ($('#o-frames').value) ov.frames = Number($('#o-frames').value);
+        if ($('#o-fps').value) ov.fps = Number($('#o-fps').value);
+        if ($('#o-img').value) ov.image_id = Number($('#o-img').value);
+        try { const r = await api(`/api/jobs/${id}/resubmit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ overrides: ov }) }); $('#re-msg').textContent = `novo job #${r.id} na fila.`; verJobs(); } catch { $('#re-msg').textContent = 'falha'; }
+      };
+      $('#btn-nota').onclick = async () => { await api(`/api/jobs/${id}/rate`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nota: $('#r-nota').value ? Number($('#r-nota').value) : null, observacao: $('#r-obs').value || null }) }); verJobs(); };
+    }
+
+    async function verOutputs() {
+      const outs = await api('/api/outputs');
+      $('#detalhe').innerHTML = '';
+      $('#lista').innerHTML = `<div class="card"><strong>Outputs</strong><table>
+        <tr><th>id</th><th>cena</th><th>tipo</th><th>frames</th><th>golden</th><th>ações</th></tr>
+        ${outs.map((o) => `<tr><td>${o.id}</td><td>${o.scene_id ?? '—'}</td><td>${o.tipo}</td><td>${o.frames_count}</td>
+          <td>${o.golden ? '⭐' : ''}</td>
+          <td class="row">
+            <button class="ghost" data-golden="${o.id}" data-val="${o.golden ? 0 : 1}">${o.golden ? 'tirar golden' : 'marcar golden'}</button>
+            <button class="ghost" data-promote="${o.id}">promover frame→biblioteca</button>
+          </td></tr>`).join('') || '<tr><td colspan="6" class="muted">sem outputs ainda (Fase 4)</td></tr>'}
+      </table></div>`;
+      document.querySelectorAll('[data-golden]').forEach((b) => b.onclick = async () => { await api(`/api/outputs/${b.dataset.golden}/golden`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ golden: b.dataset.val === '1' }) }); verOutputs(); });
+      document.querySelectorAll('[data-promote]').forEach((b) => b.onclick = async () => {
+        const frame = prompt('Nome do frame (ex.: frame-0042.png):'); if (!frame) return;
+        const cat = prompt('category_id (opcional):');
+        try { const r = await api(`/api/outputs/${b.dataset.promote}/promote-frame`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ frame, category_id: cat ? Number(cat) : undefined }) }); alert('Imagem #' + r.id + ' criada na biblioteca (use como input da próxima cena).'); } catch (e) { alert(e.b?.detalhe || 'falha'); }
+      });
+    }
+
+    $('#tab-jobs').onclick = verJobs;
+    $('#tab-out').onclick = verOutputs;
+    fetch('/api/auth/me').then((r) => { if (!r.ok) location.href = '/'; else verJobs(); });
+  </script>
+</body>
+</html>

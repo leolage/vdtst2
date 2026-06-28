@@ -65,7 +65,9 @@ scenes           (id, project_id, nome, ordem, categoria_id, segmentos, dur_segm
 scene_loras      (id, scene_id, lora_nome, peso)
 prompts          (id, scene_id, texto_pos, texto_neg, ordem)        -- CONTEÚDO
 image_categories (id, nome, descricao)
-images           (id, category_id, path, thumb_path, tags_json)     -- CONTEÚDO
+images           (id, category_id, path, thumb_path, tags_json,
+                  origem_output_id, origem_frame)                   -- CONTEÚDO + linhagem
+                  -- origem_*: imagem promovida de um frame golden (encadeamento de cenas)
 scene_images     (id, scene_id, image_id)                           -- seleção por cena
 
 comfy_nodes      (id, nome, ssh_host, ssh_port, ssh_user, ssh_key_ref,
@@ -73,11 +75,13 @@ comfy_nodes      (id, nome, ssh_host, ssh_port, ssh_user, ssh_key_ref,
                   queue_len, modelos_json, loras_json, ultimo_health)
 
 jobs             (id, project_id, scene_id, prompt_id, image_id, segmento_idx,
-                  params_json, status, prioridade, node_id, comfy_prompt_id,
-                  output_path, erro_categoria, traceback, tentativas,
+                  params_json, overrides_json, status, prioridade, node_id,
+                  comfy_prompt_id, output_path, erro_categoria, traceback,
+                  tentativas, nota, observacao,            -- catálogo
                   agendado_para, criado_em, iniciado_em, terminado_em)
 schedules        (id, project_id, regra_json, ativo)
-outputs          (id, job_id, scene_id, path, thumb_path, aprovado, criado_em)
+outputs          (id, job_id, scene_id, tipo, path, thumb_path, aprovado,
+                  golden, frames_dir, frames_count, criado_em)
 agent_decisions  (id, acao, alvo_json, motivo, custo_tokens, criado_em)
 agent_events     (id, tipo, mensagem, job_id, criado_em)
 ```
@@ -144,7 +148,9 @@ Resumo (detalhe em [WORKFLOW-BINDING.md](./WORKFLOW-BINDING.md)):
 
 1. **Fundação** — TS/Fastify, Knex+migrations, login único, systemd/nginx/cloudflared, README. ← *esta fase*
 2. **Ingestão de workflow** — upload, parser, auto-detecção, tela de binding.
-3. **Domínio** — CRUD projects/scenes/prompts, biblioteca de imagens por categoria, explosão em jobs.
+3. **Domínio** — CRUD projects/scenes/prompts, biblioteca de imagens por categoria,
+   explosão em jobs, catálogo (nota/observação), tela de debug com **reenvio ajustado**,
+   e **encadeamento por frame golden** (promover frame → biblioteca → input da próxima cena).
 4. **Multi-nó SSH + worker** — registro de nós, túnel, health, roteamento, submissão,
    stitch ffmpeg, **extração de frames no nó remoto** e download para a pasta estruturada.
 5. **Galeria** — player, thumbnails, aprovar/reprovar (frontend React/Vite).

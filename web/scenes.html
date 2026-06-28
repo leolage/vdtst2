@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WAN Studio — Cenas</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: system-ui, sans-serif; background: #0e1116; color: #e6edf3; margin: 0; }
+    .wrap { max-width: 960px; margin: 4vh auto; padding: 0 16px; }
+    a { color: #58a6ff; }
+    input, button, select, textarea { padding: 8px; border-radius: 8px; border: 1px solid #30363d; background: #161b22; color: #e6edf3; font: inherit; }
+    button { background: #238636; border-color: #238636; cursor: pointer; font-weight: 600; }
+    button.ghost { background: #21262d; border-color: #30363d; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; margin: 12px 0; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .muted { color: #8b949e; font-size: .9rem; }
+    .pill { font-size:.7rem; padding:1px 6px; border-radius:999px; border:1px solid #30363d; }
+    textarea { width: 100%; min-height: 56px; }
+    .imgsel { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:6px; }
+    .imgsel label { background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:6px; font-size:.72rem; word-break:break-all; display:block; }
+    h3 { margin: 12px 0 6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p><a href="/">← painel</a> · <a href="/images.html">biblioteca de imagens</a></p>
+    <h1>Cenas</h1>
+    <div class="card row">
+      <label>Projeto: <select id="proj"></select></label>
+      <input id="nova-cena" placeholder="nome da nova cena" />
+      <button id="btn-cena">Adicionar cena</button>
+    </div>
+    <div id="cenas"></div>
+    <div id="editor"></div>
+  </div>
+
+  <script>
+    const $ = (s, el = document) => el.querySelector(s);
+    const api = (u, o) => fetch(u, o).then(async (r) => { const b = r.headers.get('content-type')?.includes('json') ? await r.json() : null; if (!r.ok) throw Object.assign(new Error(), { status: r.status, b }); return b; });
+    let projetos = [], categorias = [], imagens = [], cenaAtual = null;
+
+    async function init() {
+      [projetos, categorias, imagens] = await Promise.all([api('/api/projects'), api('/api/image-categories'), api('/api/images')]);
+      $('#proj').innerHTML = projetos.map((p) => `<option value="${p.id}">#${p.id} ${p.nome}</option>`).join('');
+      $('#proj').onchange = loadCenas;
+      if (projetos.length) loadCenas();
+    }
+    async function loadCenas() {
+      const pid = $('#proj').value;
+      const cenas = await api(`/api/projects/${pid}/scenes`);
+      $('#cenas').innerHTML = '<div class="card"><strong>Cenas do projeto</strong>' +
+        (cenas.length ? '' : '<p class="muted">nenhuma</p>') +
+        cenas.map((c) => `<div class="row" style="justify-content:space-between;border-top:1px solid #21262d;padding:6px 0"><span>#${c.id} ${c.nome} <span class="pill">${c.segmentos} seg</span></span><span class="row"><button class="ghost" data-abrir="${c.id}">editar</button><button class="ghost" data-delcena="${c.id}">excluir</button></span></div>`).join('') + '</div>';
+      document.querySelectorAll('[data-abrir]').forEach((b) => b.onclick = () => abrirCena(Number(b.dataset.abrir)));
+      document.querySelectorAll('[data-delcena]').forEach((b) => b.onclick = async () => { if (confirm('Excluir cena?')) { await api('/api/scenes/' + b.dataset.delcena, { method: 'DELETE' }); $('#editor').innerHTML = ''; loadCenas(); } });
+    }
+    $('#btn-cena').onclick = async () => { const nome = $('#nova-cena').value.trim(); if (!nome) return; await api(`/api/projects/${$('#proj').value}/scenes`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nome }) }); $('#nova-cena').value = ''; loadCenas(); };
+
+    async function abrirCena(id) {
+      cenaAtual = await api('/api/scenes/' + id);
+      const c = cenaAtual;
+      const catOpts = '<option value="">(sem)</option>' + categorias.map((k) => `<option value="${k.id}" ${k.id === c.categoria_id ? 'selected' : ''}>${k.nome}</option>`).join('');
+      const imgsFiltradas = c.categoria_id ? imagens.filter((i) => i.category_id === c.categoria_id) : imagens;
+      $('#editor').innerHTML = `<div class="card">
+        <div class="row" style="justify-content:space-between"><strong>Cena #${c.id} — ${c.nome}</strong><span id="cena-msg" class="muted"></span></div>
+        <div class="row" style="margin-top:8px">
+          <label>nome <input id="c-nome" value="${c.nome}"></label>
+          <label>segmentos <input id="c-seg" type="number" min="1" value="${c.segmentos}" style="width:70px"></label>
+          <label>dur/seg(s) <input id="c-dur" type="number" step="0.1" value="${c.dur_segmento}" style="width:80px"></label>
+          <label>categoria <select id="c-cat">${catOpts}</select></label>
+          <button id="btn-cena-save" class="ghost">salvar cena</button>
+        </div>
+
+        <h3>Prompts</h3>
+        <div id="prompts">${(c.prompts || []).map(promptRow).join('') || '<span class="muted">nenhum</span>'}</div>
+        <div class="row" style="margin-top:6px"><textarea id="np-pos" placeholder="prompt positivo"></textarea></div>
+        <div class="row"><textarea id="np-neg" placeholder="prompt negativo (opcional)"></textarea><button id="btn-prompt">+ prompt</button></div>
+
+        <h3>LoRAs</h3>
+        <div id="loras">${(c.loras || []).map((l) => `<span class="pill">${l.lora_nome} (${l.peso}) <a href="#" data-dellora="${l.id}">✕</a></span> `).join('') || '<span class="muted">nenhum</span>'}</div>
+        <div class="row" style="margin-top:6px"><input id="nl-nome" placeholder="lora_nome"><input id="nl-peso" type="number" step="0.05" value="1.0" style="width:80px"><button id="btn-lora">+ lora</button></div>
+
+        <h3>Imagens da cena <span class="muted">(${imgsFiltradas.length} na categoria)</span></h3>
+        <div class="imgsel" id="imgsel">${imgsFiltradas.map((i) => `<label><input type="checkbox" value="${i.id}" ${c.image_ids.includes(i.id) ? 'checked' : ''}> #${i.id} ${i.path.split('/').pop()}</label>`).join('') || '<span class="muted">nenhuma imagem nesta categoria</span>'}</div>
+        <div class="row" style="margin-top:6px"><button id="btn-imgs" class="ghost">salvar seleção de imagens</button></div>
+
+        <h3>Gerar jobs</h3>
+        <div class="row"><button id="btn-gerar">Gerar jobs (lote)</button><span id="gerar-msg" class="muted"></span></div>
+      </div>`;
+      ligar(id);
+    }
+    function promptRow(p) { return `<div class="row" style="border-top:1px solid #21262d;padding:4px 0"><span class="muted">#${p.id}</span> ${p.texto_pos.slice(0, 80)} <a href="#" data-delprompt="${p.id}">✕</a></div>`; }
+
+    function ligar(id) {
+      $('#btn-cena-save').onclick = async () => {
+        await api('/api/scenes/' + id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nome: $('#c-nome').value, segmentos: Number($('#c-seg').value), dur_segmento: Number($('#c-dur').value), categoria_id: $('#c-cat').value ? Number($('#c-cat').value) : null }) });
+        $('#cena-msg').textContent = 'salvo'; loadCenas(); abrirCena(id);
+      };
+      $('#btn-prompt').onclick = async () => { const pos = $('#np-pos').value.trim(); if (!pos) return; await api(`/api/scenes/${id}/prompts`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texto_pos: pos, texto_neg: $('#np-neg').value || undefined }) }); abrirCena(id); };
+      document.querySelectorAll('[data-delprompt]').forEach((a) => a.onclick = async (e) => { e.preventDefault(); await api('/api/prompts/' + a.dataset.delprompt, { method: 'DELETE' }); abrirCena(id); });
+      $('#btn-lora').onclick = async () => { const nome = $('#nl-nome').value.trim(); if (!nome) return; await api(`/api/scenes/${id}/loras`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lora_nome: nome, peso: Number($('#nl-peso').value) }) }); abrirCena(id); };
+      document.querySelectorAll('[data-dellora]').forEach((a) => a.onclick = async (e) => { e.preventDefault(); await api('/api/loras/' + a.dataset.dellora, { method: 'DELETE' }); abrirCena(id); });
+      $('#btn-imgs').onclick = async () => { const ids = [...document.querySelectorAll('#imgsel input:checked')].map((c) => Number(c.value)); await api(`/api/scenes/${id}/images`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image_ids: ids }) }); $('#cena-msg').textContent = 'imagens salvas'; };
+      $('#btn-gerar').onclick = async () => { try { const r = await api(`/api/scenes/${id}/generate-jobs`, { method: 'POST' }); $('#gerar-msg').textContent = `${r.criados} jobs criados.`; } catch (e) { $('#gerar-msg').textContent = e.b?.detalhe || 'falha'; } };
+    }
+    fetch('/api/auth/me').then((r) => { if (!r.ok) location.href = '/'; else init(); });
+  </script>
+</body>
+</html>

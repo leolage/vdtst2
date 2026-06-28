@@ -12,6 +12,7 @@ reinicia trabalho — sem nunca ler prompts ou imagens.
 > · Guardrails do agente: [`docs/AGENT-GUARDRAILS.md`](docs/AGENT-GUARDRAILS.md)
 > · Binding de workflow: [`docs/WORKFLOW-BINDING.md`](docs/WORKFLOW-BINDING.md)
 > · Deploy na VM: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+> · Domínio (cenas/catálogo/encadeamento): [`docs/DOMAIN.md`](docs/DOMAIN.md)
 > · Melhorias futuras: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## Stack
@@ -27,10 +28,14 @@ Tunnel para acesso externo · nós ComfyUI remotos via SSH · systemd · nginx l
 | `wan-cron`   | `dist/notify/cron.js`  | notificações Telegram (status da fila/hora) |
 | `wan-tunnel` | `cloudflared`          | acesso externo via Cloudflare |
 
-## Estado atual: Fase 1 (fundação)
-Já funciona: servidor Fastify, login único, migrations de **todo** o schema, esqueletos
-de worker e agente, guardrails de entrada do agente + teste de regressão, e configs de
-deploy (systemd / nginx / cloudflared). Próximas fases no roadmap em `docs/ARCHITECTURE.md`.
+## Estado atual: Fases 1–3
+- **Fase 1** — Fastify, login único, migrations, esqueletos de worker/agente, guardrails + CI.
+- **Fase 2** — upload de workflow (formato API), parser e auto-detecção, tela de binding.
+- **Fase 3** — cenas/prompts/LoRAs, biblioteca de imagens por categoria, explosão de jobs,
+  catálogo com nota, tela de **debug + reenvio ajustado** e **encadeamento por frame golden**.
+
+Próxima: **Fase 4** (multi-nó SSH + worker: execução real no ComfyUI, download e frames).
+Detalhes em `docs/ARCHITECTURE.md`.
 
 ## Desenvolvimento
 

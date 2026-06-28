@@ -4,10 +4,14 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cookie from '@fastify/cookie';
 import session from '@fastify/session';
 import fastifyStatic from '@fastify/static';
+import multipart from '@fastify/multipart';
 import { config } from '../config/index.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
 import { projectRoutes } from './routes/projects.js';
+import { sceneRoutes } from './routes/scenes.js';
+import { imageRoutes } from './routes/images.js';
+import { catalogRoutes } from './routes/catalog.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +32,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   await app.register(cookie);
+  await app.register(multipart, { limits: { fileSize: 64 * 1024 * 1024 } });
   await app.register(session, {
     secret: config.web.sessionSecret,
     cookie: {
@@ -52,6 +57,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(authRoutes, { prefix: '/api/auth' });
   await app.register(healthRoutes, { prefix: '/api' });
   await app.register(projectRoutes, { prefix: '/api' });
+  await app.register(sceneRoutes, { prefix: '/api' });
+  await app.register(imageRoutes, { prefix: '/api' });
+  await app.register(catalogRoutes, { prefix: '/api' });
 
   // UI estática (placeholder na Fase 1; React/Vite vem na Fase 5)
   await app.register(fastifyStatic, {
