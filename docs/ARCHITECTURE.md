@@ -51,6 +51,8 @@ Você (externo) ─HTTPS─► Cloudflare ──túnel saída──► cloudflar
   concatena os segmentos com ffmpeg.
 - **wan-agent** — loop de supervisão. Lê estado **redigido** (sem conteúdo), decide ações
   via tool-use do Claude, e o executor valida cada ação contra uma allowlist.
+- **wan-cron** — tarefas agendadas. Hoje envia ao Telegram o **status da fila de hora em
+  hora**; notificações de vídeo pronto e de erro são por evento (worker/agente).
 - **wan-tunnel** — `cloudflared`, expõe o app pela Cloudflare.
 
 ## Modelo de domínio

@@ -40,4 +40,9 @@ export const config = {
     decisionModel: process.env.AGENT_DECISION_MODEL || 'claude-sonnet-4-6',
     healthModel: process.env.AGENT_HEALTH_MODEL || 'claude-haiku-4-5-20251001',
   },
+
+  telegram: {
+    botToken: process.env.TELEGRAM_BOT_TOKEN || '',
+    chatId: process.env.TELEGRAM_CHAT_ID || '',
+  },
 };

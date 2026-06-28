@@ -12,6 +12,7 @@ reinicia trabalho — sem nunca ler prompts ou imagens.
 > · Guardrails do agente: [`docs/AGENT-GUARDRAILS.md`](docs/AGENT-GUARDRAILS.md)
 > · Binding de workflow: [`docs/WORKFLOW-BINDING.md`](docs/WORKFLOW-BINDING.md)
 > · Deploy na VM: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+> · Melhorias futuras: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## Stack
 Node 20 + TypeScript · Fastify · MariaDB (Knex) · fila no próprio banco · Cloudflare
@@ -23,6 +24,7 @@ Tunnel para acesso externo · nós ComfyUI remotos via SSH · systemd · nginx l
 | `wan-web`    | `dist/server/index.js` | API REST + WebSocket + UI |
 | `wan-worker` | `dist/worker/index.js` | executa jobs no ComfyUI |
 | `wan-agent`  | `dist/agent/index.js`  | supervisor LLM (guardrails) |
+| `wan-cron`   | `dist/notify/cron.js`  | notificações Telegram (status da fila/hora) |
 | `wan-tunnel` | `cloudflared`          | acesso externo via Cloudflare |
 
 ## Estado atual: Fase 1 (fundação)
@@ -47,7 +49,7 @@ npm test                    # roda o teste de guardrails
 npm ci && npm run build
 npm run migrate
 sudo cp deploy/systemd/*.service /etc/systemd/system/
-sudo systemctl enable --now wan-web wan-worker wan-agent wan-tunnel
+sudo systemctl enable --now wan-web wan-worker wan-agent wan-cron wan-tunnel
 ```
 
 Passo a passo completo em [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
