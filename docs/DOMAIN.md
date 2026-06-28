@@ -50,5 +50,22 @@ O `wan-cron` avalia os schedules **a cada minuto** (`evaluateSchedules`) e o wor
 jobs cujo `agendado_para` já chegou. Lógica pura (`deveRodar`, `proximoRun`, `staggerTimes`)
 testada em `test/schedule.test.ts`. Botão **"rodar agora"** dispara um schedule na hora.
 
-> Continuidade automática entre segmentos (último frame → input do próximo) segue como
-> refinamento no roadmap; o encadeamento por **frame golden** já cobre isso manualmente.
+## Encadeamento automático de segmentos
+Quando uma cena tem `segmentos > 1` e `encadear` ligado (default), os segmentos de cada
+combinação (cena×prompt×imagem) formam uma **cadeia** (`jobs.chain_key`) que roda em ordem:
+
+1. Só o **segmento 0** entra como `queued`; os demais ficam `waiting` (invisíveis ao worker
+   e ao agente) ligados por `jobs.depende_de`.
+2. Ao concluir um segmento, o worker **promove o último frame** dele a imagem de input do
+   próximo (mesma mecânica do frame golden) e o libera para a fila — continuidade visual.
+3. Quando o último segmento conclui, os vídeos são **concatenados** com ffmpeg num
+   `final.mp4` (output `is_final`), e o Telegram avisa.
+4. Se um segmento falha, a cadeia downstream é **abortada** (`CHAIN_ABORTADA`) para não ficar
+   pendurada.
+
+A montagem das unidades (`buildUnits`) é pura e testada em `test/chaining.test.ts`; o stagger
+do agendador espaça **as cadeias** (cada uma é um vídeo final), não os segmentos internos.
+
+> Requisito: o workflow precisa ter um **input de imagem** mapeado (binding `image`), senão
+> não há onde injetar o frame de continuidade. Desligue `encadear` para tratar os segmentos
+> como variações independentes.

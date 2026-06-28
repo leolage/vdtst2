@@ -40,3 +40,12 @@ export function framesDir(ref: JobRef): string {
 export function inputsRoot(): string {
   return path.join(config.paths.dataDir, 'inputs');
 }
+
+/** Pasta e arquivo do vídeo final concatenado de uma cadeia de segmentos. */
+export function chainDir(projectId: number, sceneId: number, chainKey: string): string {
+  const safe = chainKey.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return path.join(outputsRoot(), `proj-${projectId}`, `scene-${sceneId}`, `chain-${safe}`);
+}
+export function chainFinalPath(projectId: number, sceneId: number, chainKey: string): string {
+  return path.join(chainDir(projectId, sceneId, chainKey), 'final.mp4');
+}

@@ -5,8 +5,10 @@
  */
 import type { Knex } from 'knex';
 import { makeLogger } from '../shared/logger.js';
-import { explodeScene, type JobSeed } from '../domain/jobs.js';
-import { deveRodar, proximoRun, staggerTimes, type Regra } from '../domain/schedule.js';
+import { explodeScene } from '../domain/jobs.js';
+import { deveRodar, proximoRun, type Regra } from '../domain/schedule.js';
+import { insertJobs } from '../worker/insert.js';
+import type { ScenePlan } from '../domain/chaining.js';
 
 const log = makeLogger('scheduler');
 
@@ -33,7 +35,7 @@ async function gerarDoSchedule(db: Knex, row: Record<string, unknown>, now: Date
     ? regra.scene_ids
     : await db('scenes').where({ project_id: projectId }).pluck('id');
 
-  const seeds: JobSeed[] = [];
+  const plans: ScenePlan[] = [];
   for (const sceneId of sceneIds) {
     const scene = await db('scenes').where({ id: sceneId }).first();
     if (!scene) continue;
@@ -41,13 +43,13 @@ async function gerarDoSchedule(db: Knex, row: Record<string, unknown>, now: Date
       db('prompts').where({ scene_id: sceneId }).pluck('id'),
       db('scene_images').where({ scene_id: sceneId }).pluck('image_id'),
     ]);
-    seeds.push(...explodeScene({ projectId, sceneId: Number(sceneId), segmentos: scene.segmentos, promptIds, imageIds }));
+    const seeds = explodeScene({ projectId, sceneId: Number(sceneId), segmentos: scene.segmentos, promptIds, imageIds });
+    if (seeds.length) plans.push({ seeds, encadear: Boolean(scene.encadear) && scene.segmentos > 1 });
   }
-  if (seeds.length === 0) return { criados: 0, motivo: 'nada para gerar (sem cenas/prompts)' };
+  if (plans.length === 0) return { criados: 0, motivo: 'nada para gerar (sem cenas/prompts)' };
 
-  const times = staggerTimes(seeds.length, regra.stagger_min ?? 0, now);
-  await db('jobs').insert(seeds.map((s, i) => ({ ...s, agendado_para: times[i] })));
-  return { criados: seeds.length };
+  const criados = await insertJobs(db, plans, { staggerMin: regra.stagger_min ?? 0, baseTime: now });
+  return { criados };
 }
 
 /** Avalia todos os schedules ativos e dispara os que devem rodar. */

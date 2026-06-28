@@ -75,9 +75,10 @@ comfy_nodes      (id, nome, ssh_host, ssh_port, ssh_user, ssh_key_ref,
                   queue_len, modelos_json, loras_json, ultimo_health)
 
 jobs             (id, project_id, scene_id, prompt_id, image_id, segmento_idx,
-                  params_json, overrides_json, status, prioridade, node_id,
+                  params_json, overrides_json, status[+waiting], prioridade, node_id,
                   comfy_prompt_id, output_path, erro_categoria, traceback,
                   tentativas, nota, observacao,            -- catálogo
+                  chain_key, depende_de,                   -- encadeamento de segmentos
                   agendado_para, criado_em, iniciado_em, terminado_em)
 schedules        (id, project_id, regra_json, ativo)
 outputs          (id, job_id, scene_id, tipo, path, thumb_path, aprovado,

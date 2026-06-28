@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { db } from '../../db/knex.js';
 import { explodeScene } from '../../domain/jobs.js';
+import { insertJobs } from '../../worker/insert.js';
 
 export async function sceneRoutes(app: FastifyInstance) {
   // ---- cenas ----
@@ -18,6 +19,7 @@ export async function sceneRoutes(app: FastifyInstance) {
       categoria_id: z.number().int().nullable().optional(),
       segmentos: z.number().int().min(1).optional(),
       dur_segmento: z.number().positive().optional(),
+      encadear: z.boolean().optional(),
     }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'payload_invalido' });
     const [id] = await db()('scenes').insert({ project_id: projectId, ...parsed.data });
@@ -44,6 +46,7 @@ export async function sceneRoutes(app: FastifyInstance) {
       categoria_id: z.number().int().nullable().optional(),
       segmentos: z.number().int().min(1).optional(),
       dur_segmento: z.number().positive().optional(),
+      encadear: z.boolean().optional(),
     }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'payload_invalido' });
     const n = await db()('scenes').where({ id }).update(parsed.data);
@@ -135,7 +138,8 @@ export async function sceneRoutes(app: FastifyInstance) {
     });
     if (seeds.length === 0) return reply.code(409).send({ error: 'sem_prompts', detalhe: 'Adicione ao menos um prompt antes de gerar jobs.' });
 
-    await db()('jobs').insert(seeds);
-    return reply.code(201).send({ criados: seeds.length });
+    const encadear = Boolean(scene.encadear) && scene.segmentos > 1;
+    const criados = await insertJobs(db(), [{ seeds, encadear }]);
+    return reply.code(201).send({ criados, encadeado: encadear });
   });
 }

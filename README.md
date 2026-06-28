@@ -44,8 +44,10 @@ Tunnel para acesso externo · nós ComfyUI remotos via SSH · systemd · nginx l
 - **Fase 7** — agendamento "novela": schedules por projeto (uma vez/intervalo), geração de
   jobs no tempo com `stagger` e teto de fila, avaliados pelo `wan-cron` a cada minuto.
 
-**As 7 fases do roadmap estão completas.** Próximos passos em `docs/ROADMAP.md`
-(geração com Flux, observabilidade, pós-processamento, encadeamento automático de segmentos…).
+**As 7 fases do roadmap estão completas**, mais o **encadeamento automático de segmentos**
+(cada segmento usa o último frame do anterior como input e os segmentos são concatenados num
+vídeo final — ver `docs/DOMAIN.md`). Próximos passos opcionais em `docs/ROADMAP.md`
+(geração com Flux, observabilidade, pós-processamento…).
 
 ### Desenvolvimento do frontend
 `npm run dev:ui` sobe o Vite (proxy de `/api` para `127.0.0.1:3000`); `npm run build:ui`

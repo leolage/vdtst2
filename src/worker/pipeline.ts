@@ -25,6 +25,7 @@ import { classifyError } from '../agent/context.js';
 import { extractLocal, extractRemote } from './frames.js';
 import { jobDir, videoPath, framesDir } from '../shared/paths.js';
 import { notify } from '../notify/telegram.js';
+import { advanceChain, abortChainDownstream } from './chain.js';
 
 const log = makeLogger('worker');
 
@@ -142,7 +143,7 @@ export async function processJob(job: Record<string, unknown>): Promise<void> {
       log.warn({ jobId, err: (e as Error).message }, 'extração de frames falhou (vídeo preservado)');
     }
 
-    await db()('outputs').insert({
+    const [outputId] = await db()('outputs').insert({
       job_id: jobId, scene_id: job.scene_id, tipo: 'video', path: vpath,
       frames_dir: framesCount ? fdir : null, frames_count: framesCount,
     });
@@ -150,6 +151,9 @@ export async function processJob(job: Record<string, unknown>): Promise<void> {
 
     log.info({ jobId, vpath, framesCount }, 'job concluído');
     await notify.videoPronto(vpath, scene?.nome ?? `cena ${job.scene_id}`);
+
+    // encadeamento: libera o próximo segmento (com frame de continuidade) ou concatena
+    await advanceChain(db(), job, { framesDir: fdir, framesCount, outputId: Number(outputId) });
   } catch (err) {
     const msg = (err as Error).message;
     const categoria = classifyError(msg) ?? 'DESCONHECIDO';
@@ -159,6 +163,7 @@ export async function processJob(job: Record<string, unknown>): Promise<void> {
     });
     log.error({ jobId, categoria, msg }, 'job falhou');
     await notify.erroJob(jobId, categoria);
+    await abortChainDownstream(db(), job).catch(() => undefined);
   } finally {
     try { tunnelClose?.(); } catch { /* ignore */ }
     try { conn?.end(); } catch { /* ignore */ }
