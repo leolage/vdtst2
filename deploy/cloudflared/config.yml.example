@@ -1,0 +1,17 @@
+# /etc/cloudflared/config.yml
+# Pré-requisitos (uma vez):
+#   cloudflared tunnel login
+#   cloudflared tunnel create wan-studio
+#   cloudflared tunnel route dns wan-studio wan.seudominio.com
+
+tunnel: wan-studio
+credentials-file: /etc/cloudflared/wan-studio.json
+
+ingress:
+  - hostname: wan.seudominio.com
+    # aponte para o nginx local (8080) ou direto para a app (3000)
+    service: http://127.0.0.1:8080
+  - service: http_status:404
+
+# Recomendado: proteja com Cloudflare Access (Zero Trust) exigindo seu e-mail/OTP
+# antes mesmo de chegar no login da aplicação.

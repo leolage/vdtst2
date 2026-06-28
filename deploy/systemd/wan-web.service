@@ -1,0 +1,20 @@
+[Unit]
+Description=WAN Studio - web (API + UI)
+After=network.target mariadb.service
+Wants=mariadb.service
+
+[Service]
+Type=simple
+User=wan
+WorkingDirectory=/opt/wan-studio
+EnvironmentFile=/opt/wan-studio/.env
+ExecStart=/usr/bin/node dist/server/index.js
+Restart=on-failure
+RestartSec=3
+# segurança
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/wan-studio
+
+[Install]
+WantedBy=multi-user.target

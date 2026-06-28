@@ -1,0 +1,16 @@
+[Unit]
+Description=WAN Studio - cloudflared (Cloudflare Tunnel)
+After=network.target wan-web.service
+Wants=wan-web.service
+
+[Service]
+Type=simple
+User=wan
+# Túnel nomeado, configurado em /etc/cloudflared/config.yml (ver deploy/cloudflared/)
+ExecStart=/usr/bin/cloudflared tunnel run wan-studio
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

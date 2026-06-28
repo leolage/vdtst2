@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.log
+# dados em runtime (fora do repo no servidor)
+/var-lib/
+coverage/
+.DS_Store

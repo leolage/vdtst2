@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WAN Studio</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: system-ui, sans-serif; background: #0e1116; color: #e6edf3; margin: 0; }
+    .wrap { max-width: 420px; margin: 12vh auto; padding: 24px; }
+    h1 { font-size: 1.4rem; }
+    input, button { width: 100%; box-sizing: border-box; padding: 10px; margin: 6px 0; border-radius: 8px; border: 1px solid #30363d; background: #161b22; color: #e6edf3; }
+    button { background: #238636; border-color: #238636; cursor: pointer; font-weight: 600; }
+    .msg { color: #f85149; min-height: 1.2em; }
+    .hidden { display: none; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; margin-top: 12px; }
+    .muted { color: #8b949e; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>WAN Studio</h1>
+
+    <div id="login-view">
+      <p class="muted">Entre para gerenciar projetos de geração de vídeo.</p>
+      <input id="login" placeholder="login" autocomplete="username" />
+      <input id="senha" type="password" placeholder="senha" autocomplete="current-password" />
+      <button id="btn-login">Entrar</button>
+      <div class="msg" id="login-msg"></div>
+    </div>
+
+    <div id="app-view" class="hidden">
+      <div class="card">
+        <strong>Bem-vindo, <span id="who"></span>.</strong>
+        <p class="muted">Fase 1 (fundação) no ar. Projetos, cenas, biblioteca de imagens
+        e galeria chegam nas próximas fases.</p>
+        <button id="btn-logout">Sair</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    async function refresh() {
+      const r = await fetch('/api/auth/me');
+      if (r.ok) {
+        const { login } = await r.json();
+        $('who').textContent = login;
+        $('login-view').classList.add('hidden');
+        $('app-view').classList.remove('hidden');
+      } else {
+        $('app-view').classList.add('hidden');
+        $('login-view').classList.remove('hidden');
+      }
+    }
+    $('btn-login').onclick = async () => {
+      $('login-msg').textContent = '';
+      const r = await fetch('/api/auth/login', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ login: $('login').value, senha: $('senha').value }),
+      });
+      if (r.ok) refresh();
+      else $('login-msg').textContent = 'Credenciais inválidas.';
+    };
+    $('btn-logout').onclick = async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      refresh();
+    };
+    refresh();
+  </script>
+</body>
+</html>

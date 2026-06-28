@@ -1,0 +1,46 @@
+{
+  "name": "wan-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Gestor de criação de vídeos em lote com WAN 2.2 / ComfyUI",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev:web": "tsx watch src/server/index.ts",
+    "dev:worker": "tsx watch src/worker/index.ts",
+    "dev:agent": "tsx watch src/agent/index.ts",
+    "start:web": "node dist/server/index.js",
+    "start:worker": "node dist/worker/index.js",
+    "start:agent": "node dist/agent/index.js",
+    "migrate": "knex --knexfile knexfile.cjs migrate:latest",
+    "migrate:rollback": "knex --knexfile knexfile.cjs migrate:rollback",
+    "migrate:make": "knex --knexfile knexfile.cjs migrate:make -x cjs",
+    "create-user": "tsx src/cli/create-user.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^9.3.1",
+    "@fastify/session": "^10.7.0",
+    "@fastify/static": "^7.0.4",
+    "@fastify/websocket": "^10.0.1",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.28.1",
+    "knex": "^3.1.0",
+    "mysql2": "^3.11.0",
+    "pino": "^9.3.2",
+    "pino-pretty": "^11.2.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}
