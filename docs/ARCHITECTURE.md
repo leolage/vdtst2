@@ -154,7 +154,8 @@ Resumo (detalhe em [WORKFLOW-BINDING.md](./WORKFLOW-BINDING.md)):
 4. **Multi-nó SSH + worker** ✅ — registro de nós (chave cifrada), túnel, health, roteamento,
    submissão, **extração de frames no nó remoto**, download para a pasta estruturada e
    notificação Telegram (vídeo pronto / erro).
-5. **Galeria** — player, thumbnails, aprovar/reprovar (frontend React/Vite).
+5. **Galeria** ✅ — React/Vite em `/app`: player, golden, aprovar/reprovar, frames +
+   promoção; mídia servida sob `/api/media` (protegida pela sessão).
 6. **Agente LLM** ✅ — loop de decisão (Claude tool-use), allowlist de ações validada em
    código, health determinístico dos nós, auditoria em `agent_decisions`.
 7. **Agendamento** — regras de schedule, disparo automático.

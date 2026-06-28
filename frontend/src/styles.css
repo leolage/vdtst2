@@ -1,0 +1,37 @@
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #0e1116; color: #e6edf3; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+.center { min-height: 100vh; display: grid; place-items: center; }
+.muted { color: #8b949e; font-size: .9rem; }
+.erro { color: #f85149; min-height: 1.2em; }
+h1 { font-size: 1.4rem; margin: 0; }
+a { color: #58a6ff; }
+
+input, button, select { padding: 8px; border-radius: 8px; border: 1px solid #30363d; background: #161b22; color: #e6edf3; font: inherit; }
+button { cursor: pointer; }
+button.ghost { background: #21262d; }
+button.ghost.on { border-color: #d29922; color: #f0c674; }
+button.ghost.okOn { border-color: #238636; color: #3fb950; }
+button.ghost.noOn { border-color: #f85149; color: #f85149; }
+button.tiny { padding: 3px 6px; font-size: .72rem; }
+.tab { background: #21262d; text-transform: capitalize; }
+.tab.on { background: #238636; border-color: #238636; font-weight: 600; }
+
+header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 12px; }
+.login { width: 320px; display: flex; flex-direction: column; gap: 8px; }
+.login button { background: #238636; border-color: #238636; font-weight: 600; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.out .vidwrap { position: relative; background: #0d1117; border-radius: 8px; overflow: hidden; }
+.out video { width: 100%; display: block; max-height: 240px; background: #000; }
+.noVid { height: 160px; display: grid; place-items: center; }
+.goldenBadge { position: absolute; top: 6px; right: 8px; font-size: 1.2rem; filter: drop-shadow(0 0 2px #000); }
+.meta { margin: 8px 0 4px; }
+.actions { margin-bottom: 6px; }
+.frames { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
+.frame { flex: 0 0 auto; width: 96px; text-align: center; }
+.frame img { width: 96px; height: 64px; object-fit: cover; border-radius: 6px; border: 1px solid #30363d; display: block; }
+.frame button { width: 100%; margin-top: 4px; }

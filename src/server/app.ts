@@ -6,6 +6,7 @@ import session from '@fastify/session';
 import fastifyStatic from '@fastify/static';
 import multipart from '@fastify/multipart';
 import { config } from '../config/index.js';
+import { outputsRoot } from '../shared/paths.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
 import { projectRoutes } from './routes/projects.js';
@@ -63,7 +64,15 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(catalogRoutes, { prefix: '/api' });
   await app.register(nodeRoutes, { prefix: '/api' });
 
-  // UI estática (placeholder na Fase 1; React/Vite vem na Fase 5)
+  // mídia das saídas (vídeos/frames) — sob /api/media, protegida pela sessão
+  await app.register(fastifyStatic, {
+    root: outputsRoot(),
+    prefix: '/api/media/',
+    decorateReply: false,
+    index: false,
+  });
+
+  // UI estática: vanilla (management) + app React (galeria) buildado em web/app
   await app.register(fastifyStatic, {
     root: path.join(__dirname, '../../web'),
     prefix: '/',

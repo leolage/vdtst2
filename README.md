@@ -36,12 +36,18 @@ Tunnel para acesso externo · nós ComfyUI remotos via SSH · systemd · nginx l
 - **Fase 4** — multi-nó SSH (chave cifrada, túnel, health por nvidia-smi/object_info),
   roteamento por capacidade/carga, worker que injeta no workflow, submete ao ComfyUI,
   baixa o vídeo, **extrai frames no nó remoto** e notifica o Telegram (vídeo/erro).
+- **Fase 5** — galeria em **React/Vite** (`/app`): player, ⭐golden, aprovar/reprovar,
+  tira de frames com promoção para a biblioteca; mídia servida sob `/api/media`.
 - **Fase 6** — agente LLM (Claude tool-use) que dispara/retry/reprioriza jobs e
   pausa/reinicia nós, com **allowlist de ações validada em código** (nunca toca conteúdo)
   e auditoria; health dos nós determinístico.
 
-Próxima: **Fase 5** (galeria React) e **Fase 7** (agendamento).
+Próxima: **Fase 7** (agendamento automático estilo novela).
 Detalhes em `docs/ARCHITECTURE.md`.
+
+### Desenvolvimento do frontend
+`npm run dev:ui` sobe o Vite (proxy de `/api` para `127.0.0.1:3000`); `npm run build:ui`
+gera `web/app` servido pelo Fastify.
 
 ## Desenvolvimento
 
@@ -57,7 +63,7 @@ npm test                    # roda o teste de guardrails
 ## Produção (resumo)
 
 ```bash
-npm ci && npm run build
+npm ci && npm run build && npm run build:ui   # servidor + galeria React (web/app)
 npm run migrate
 sudo cp deploy/systemd/*.service /etc/systemd/system/
 sudo systemctl enable --now wan-web wan-worker wan-agent wan-cron wan-tunnel

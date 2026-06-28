@@ -26,7 +26,8 @@ cd /opt/wan-studio
 sudo -u wan npm ci
 sudo -u wan cp .env.example .env
 sudo -u wan nano .env        # DB_*, SESSION_SECRET (openssl rand -hex 32), SESSION_SECURE=true
-sudo -u wan npm run build
+sudo -u wan npm run build       # compila os serviços (dist/)
+sudo -u wan npm run build:ui    # builda a galeria React (web/app/) — precisa de Node no host
 sudo -u wan npm run migrate
 sudo -u wan npm run create-user -- admin 'suaSenhaForte'
 
@@ -80,6 +81,6 @@ periodicamente (`AGENT_HEALTH_MS`).
 ```bash
 cd /opt/wan-studio
 sudo -u wan git pull
-sudo -u wan npm ci && sudo -u wan npm run build && sudo -u wan npm run migrate
-sudo systemctl restart wan-web wan-worker wan-agent
+sudo -u wan npm ci && sudo -u wan npm run build && sudo -u wan npm run build:ui && sudo -u wan npm run migrate
+sudo systemctl restart wan-web wan-worker wan-agent wan-cron
 ```

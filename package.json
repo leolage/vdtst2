@@ -9,6 +9,9 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:ui": "npm --prefix frontend ci && npm --prefix frontend run build",
+    "build:all": "npm run build && npm run build:ui",
+    "dev:ui": "npm --prefix frontend run dev",
     "dev:web": "tsx watch src/server/index.ts",
     "dev:worker": "tsx watch src/worker/index.ts",
     "dev:agent": "tsx watch src/agent/index.ts",

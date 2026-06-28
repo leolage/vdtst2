@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# build do frontend React (gerado no deploy)
+web/app/
 .env
 *.log
 # dados em runtime (fora do repo no servidor)

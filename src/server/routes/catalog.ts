@@ -1,7 +1,17 @@
+import path from 'node:path';
+import { readdir } from 'node:fs/promises';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { db } from '../../db/knex.js';
+import { outputsRoot } from '../../shared/paths.js';
 import { resolveEffective, type GenBase, type GenOverrides } from '../../domain/effective.js';
+
+/** Caminho relativo à raiz de outputs (para montar a URL em /api/media/...). */
+function rel(p: string | null): string | null {
+  if (!p) return null;
+  const r = path.relative(outputsRoot(), p);
+  return r.startsWith('..') ? null : r.split(path.sep).join('/');
+}
 
 function asJson<T>(v: unknown): T | null {
   if (v == null) return null;
@@ -120,11 +130,43 @@ export async function catalogRoutes(app: FastifyInstance) {
 
   // ---- outputs (galeria/golden) ----
   app.get('/outputs', async (req) => {
-    const { scene_id, golden } = req.query as { scene_id?: string; golden?: string };
+    const { scene_id, golden, aprovado } = req.query as { scene_id?: string; golden?: string; aprovado?: string };
     const q = db()('outputs').select('*').orderBy('id', 'desc').limit(500);
     if (scene_id) q.where({ scene_id: Number(scene_id) });
     if (golden === 'true') q.where({ golden: true });
-    return q;
+    if (aprovado === 'true') q.where({ aprovado: true });
+    if (aprovado === 'false') q.where({ aprovado: false });
+    const rows = await q;
+    return rows.map((o) => ({
+      ...o,
+      video_rel: rel(o.path),
+      thumb_rel: rel(o.thumb_path),
+      frames_rel: rel(o.frames_dir),
+    }));
+  });
+
+  // frames de um output (para revisar e promover)
+  app.get('/outputs/:id/frames', async (req, reply) => {
+    const id = Number((req.params as { id: string }).id);
+    const o = await db()('outputs').where({ id }).first();
+    if (!o) return reply.code(404).send({ error: 'nao_encontrado' });
+    if (!o.frames_dir) return { frames: [], frames_rel: null };
+    try {
+      const files = (await readdir(o.frames_dir)).filter((f) => f.startsWith('frame-')).sort();
+      return { frames: files, frames_rel: rel(o.frames_dir) };
+    } catch {
+      return { frames: [], frames_rel: rel(o.frames_dir) };
+    }
+  });
+
+  // aprovar / reprovar um output (revisão da galeria)
+  app.patch('/outputs/:id/approve', async (req, reply) => {
+    const id = Number((req.params as { id: string }).id);
+    const parsed = z.object({ aprovado: z.boolean().nullable() }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'payload_invalido' });
+    const n = await db()('outputs').where({ id }).update({ aprovado: parsed.data.aprovado });
+    if (!n) return reply.code(404).send({ error: 'nao_encontrado' });
+    return { ok: true };
   });
 
   // marcar/desmarcar uma cena/resultado como golden (perfeito)
