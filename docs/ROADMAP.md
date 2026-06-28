@@ -18,6 +18,26 @@ worker (Fase 4) e agente (Fase 6) existirem, e criar o bot no @BotFather.
 Evoluções possíveis: botões inline para **aprovar/reprovar** vídeo direto no Telegram;
 escolher quais eventos notificar; digest diário; outros canais (e-mail, Discord, webhook).
 
+## Geração de imagens com Flux (ideia)
+Um modo para gerar imagens com **Flux** dentro do mesmo sistema. Encaixa no modelo atual:
+é só mais um workflow do ComfyUI (upload → binding de nós → jobs em lote), então o
+core (projects/workflow_json/node_bindings/jobs/agente/multi-nó) **não precisa mudar**.
+
+Pontos de design a manter em mente desde já, para não fechar a porta:
+- **Tipo de projeto**: marcar projeto/workflow como `video` ou `imagem` (ex.: coluna
+  `tipo` em `projects`). O worker pula o stitch ffmpeg e a lógica de segmentos quando for
+  imagem.
+- **Saída**: `outputs` ganha um `tipo` (`video`/`imagem`); a galeria já lista os dois.
+- **Binding genérico**: o parser de nós (Fase 2) deve ser agnóstico ao modelo — detectar
+  `CLIPTextEncode`/`LoadImage`/sampler funciona igual para Flux; só os nós de frames/fps
+  do WAN ficam ausentes (binding opcional).
+- **Sinergia forte**: imagens geradas pelo Flux podem **popular a biblioteca por
+  categoria** e virar input das cenas de vídeo WAN — fechar o ciclo "gerar referência →
+  animar". Vale prever um destino "salvar na categoria X" para a saída de imagem.
+
+Por enquanto é só ideia; nenhuma tabela muda agora. Quando desenvolvermos a Fase 2/3,
+seguimos esses ganchos para o suporte a Flux sair quase de graça.
+
 ## Painel de observabilidade
 Métricas de throughput (vídeos/hora por nó), tempo médio por segmento, taxa de erro por
 categoria, ocupação de GPU. Gráficos na UI + export Prometheus opcional.
