@@ -155,5 +155,6 @@ Resumo (detalhe em [WORKFLOW-BINDING.md](./WORKFLOW-BINDING.md)):
    submissão, **extração de frames no nó remoto**, download para a pasta estruturada e
    notificação Telegram (vídeo pronto / erro).
 5. **Galeria** — player, thumbnails, aprovar/reprovar (frontend React/Vite).
-6. **Agente LLM** — loop, tool-use, guardrails, auditoria.
+6. **Agente LLM** ✅ — loop de decisão (Claude tool-use), allowlist de ações validada em
+   código, health determinístico dos nós, auditoria em `agent_decisions`.
 7. **Agendamento** — regras de schedule, disparo automático.

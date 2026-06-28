@@ -36,8 +36,11 @@ Tunnel para acesso externo · nós ComfyUI remotos via SSH · systemd · nginx l
 - **Fase 4** — multi-nó SSH (chave cifrada, túnel, health por nvidia-smi/object_info),
   roteamento por capacidade/carga, worker que injeta no workflow, submete ao ComfyUI,
   baixa o vídeo, **extrai frames no nó remoto** e notifica o Telegram (vídeo/erro).
+- **Fase 6** — agente LLM (Claude tool-use) que dispara/retry/reprioriza jobs e
+  pausa/reinicia nós, com **allowlist de ações validada em código** (nunca toca conteúdo)
+  e auditoria; health dos nós determinístico.
 
-Próxima: **Fase 5** (galeria React) e **Fase 6** (agente LLM com decisões).
+Próxima: **Fase 5** (galeria React) e **Fase 7** (agendamento).
 Detalhes em `docs/ARCHITECTURE.md`.
 
 ## Desenvolvimento

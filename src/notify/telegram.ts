@@ -70,4 +70,6 @@ export const notify = {
         `Na fila: ${r.queued}\nRodando: ${r.running}\n` +
         `Bloqueados: ${r.blocked}\nErros: ${r.error}`,
     ),
+
+  escalar: (mensagem: string) => sendMessage(`🤖 <b>Agente</b>\n${mensagem}`),
 };

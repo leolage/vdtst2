@@ -46,8 +46,9 @@ export const config = {
     decisionMs: Number(process.env.AGENT_DECISION_MS || 45000),
     healthMs: Number(process.env.AGENT_HEALTH_MS || 10000),
     apiKey: process.env.ANTHROPIC_API_KEY || '',
-    decisionModel: process.env.AGENT_DECISION_MODEL || 'claude-sonnet-4-6',
-    healthModel: process.env.AGENT_HEALTH_MODEL || 'claude-haiku-4-5-20251001',
+    decisionModel: process.env.AGENT_DECISION_MODEL || 'claude-opus-4-8',
+    // limiar de fila por nó abaixo do qual o agente pode disparar mais trabalho
+    filaBaixa: Number(process.env.AGENT_FILA_BAIXA || 1),
   },
 
   telegram: {
@@ -65,5 +66,7 @@ export const config = {
     pollMs: Number(process.env.COMFY_POLL_MS || 3000),
     // diretório de saída do ComfyUI no host remoto (para extrair frames lá)
     outputDir: process.env.COMFY_OUTPUT_DIR || 'ComfyUI/output',
+    // comando para reiniciar o ComfyUI no host remoto (ação restart_node do agente)
+    restartCmd: process.env.COMFY_RESTART_CMD || 'sudo systemctl restart comfyui',
   },
 };

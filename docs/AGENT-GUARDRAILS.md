@@ -44,11 +44,21 @@ registrada em `agent_decisions` (ação, alvo, motivo, custo de tokens).
 caminhos de imagem reais e **falha o build** se qualquer um vazar para o payload. É a
 trava que impede quebrar a garantia sem querer no futuro.
 
-## Modelos sugeridos
-- **Claude Sonnet 4.6** (`claude-sonnet-4-6`) — raciocínio de decisão (cadência 30–60s).
-- **Claude Haiku 4.5** (`claude-haiku-4-5-20251001`) — health-checks frequentes e baratos.
+## Modelo
+- Decisões via **Claude Opus 4.8** (`claude-opus-4-8`) por padrão, configurável em
+  `AGENT_DECISION_MODEL` (troque por `claude-sonnet-4-6`/`claude-haiku-4-5` para reduzir
+  custo). O health-check dos nós é **determinístico** (sem LLM): SSH + nvidia-smi +
+  object_info, rodando na cadência `AGENT_HEALTH_MS`.
+
+## Fluxo de decisão (Fase 6)
+1. `buildAgentContext()` monta o estado redigido (sem conteúdo).
+2. `decideActions()` envia ao Claude com tool-use; o modelo escolhe ações.
+3. `validateAction()` rejeita ação fora da allowlist ou com qualquer chave estranha.
+4. `executeAction()` aplica (DB/SSH) e registra em `agent_decisions`.
 
 ## Onde está no código
 - `src/agent/context.ts` — `projectJobForAgent()`, `sanitizeTraceback()`, `buildAgentContext()`.
-- `src/agent/actions.ts` — (Fase 6) allowlist e validação das ações.
-- `test/agent-guardrails.test.ts` — teste de não-vazamento.
+- `src/agent/claude.ts` — chamada ao Claude (tool-use), system prompt restritivo.
+- `src/agent/actions.ts` — allowlist `ACTION_TOOLS`, `validateAction()`, `executeAction()`.
+- `test/agent-guardrails.test.ts` — não-vazamento na entrada.
+- `test/agent-actions.test.ts` — allowlist de saída barra ações/campos de conteúdo.
