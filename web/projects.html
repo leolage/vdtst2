@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WAN Studio — Projetos</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: system-ui, sans-serif; background: #0e1116; color: #e6edf3; margin: 0; }
+    .wrap { max-width: 900px; margin: 4vh auto; padding: 0 16px; }
+    a { color: #58a6ff; }
+    h1 { font-size: 1.4rem; }
+    input, button, select, textarea {
+      padding: 9px; border-radius: 8px; border: 1px solid #30363d;
+      background: #161b22; color: #e6edf3; font-size: .95rem;
+    }
+    button { background: #238636; border-color: #238636; cursor: pointer; font-weight: 600; }
+    button.ghost { background: #21262d; border-color: #30363d; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; margin: 12px 0; }
+    .muted { color: #8b949e; font-size: .9rem; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .pill { font-size: .75rem; padding: 2px 8px; border-radius: 999px; border: 1px solid #30363d; }
+    table { width: 100%; border-collapse: collapse; }
+    td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid #21262d; font-size: .9rem; }
+    .warn { color: #d29922; font-size: .88rem; }
+    .grid { display: grid; grid-template-columns: 140px 1fr 160px; gap: 8px; align-items: center; }
+    .hidden { display: none; }
+    textarea { width: 100%; min-height: 120px; font-family: ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p><a href="/">← painel</a></p>
+    <h1>Projetos</h1>
+
+    <div class="card">
+      <div class="row">
+        <input id="novo-nome" placeholder="nome do novo projeto" />
+        <button id="btn-criar">Criar projeto</button>
+      </div>
+    </div>
+
+    <div id="lista"></div>
+
+    <div id="editor" class="hidden"></div>
+  </div>
+
+  <script>
+    const $ = (s, el = document) => el.querySelector(s);
+    const api = (url, opts) => fetch(url, opts).then(async (r) => {
+      const body = r.headers.get('content-type')?.includes('json') ? await r.json() : null;
+      if (!r.ok) throw Object.assign(new Error('erro'), { status: r.status, body });
+      return body;
+    });
+
+    async function carregarLista() {
+      const projetos = await api('/api/projects');
+      $('#lista').innerHTML = '<div class="card"><strong>Seus projetos</strong>' +
+        (projetos.length ? '' : '<p class="muted">Nenhum projeto ainda.</p>') +
+        projetos.map((p) => `
+          <div class="row" style="justify-content:space-between;border-top:1px solid #21262d;padding:8px 0">
+            <span>#${p.id} — ${p.nome}
+              <span class="pill">${p.status}</span>
+              ${p.tem_workflow ? '<span class="pill">workflow ✓</span>' : '<span class="pill">sem workflow</span>'}
+            </span>
+            <span class="row">
+              <button class="ghost" data-abrir="${p.id}">Abrir / binding</button>
+              <button class="ghost" data-del="${p.id}">excluir</button>
+            </span>
+          </div>`).join('') + '</div>';
+      $('#lista').querySelectorAll('[data-abrir]').forEach((b) =>
+        b.onclick = () => abrir(Number(b.dataset.abrir)));
+      $('#lista').querySelectorAll('[data-del]').forEach((b) =>
+        b.onclick = async () => { if (confirm('Excluir projeto?')) { await api('/api/projects/' + b.dataset.del, { method: 'DELETE' }); carregarLista(); $('#editor').classList.add('hidden'); } });
+    }
+
+    $('#btn-criar').onclick = async () => {
+      const nome = $('#novo-nome').value.trim();
+      if (!nome) return;
+      await api('/api/projects', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nome }) });
+      $('#novo-nome').value = '';
+      carregarLista();
+    };
+
+    let estado = { id: null, nodes: [], bindings: null };
+
+    async function abrir(id) {
+      estado.id = id;
+      const ed = $('#editor');
+      ed.classList.remove('hidden');
+      let parse = null;
+      try { parse = await api(`/api/projects/${id}/parse`); } catch (e) { if (e.status !== 409) throw e; }
+      if (!parse) {
+        ed.innerHTML = uploadView(id);
+        $('#btn-upload').onclick = () => enviarWorkflow(id);
+        return;
+      }
+      estado.nodes = parse.nodes;
+      estado.bindings = parse.bindings;
+      ed.innerHTML = bindingView(parse);
+      ligarBindingHandlers(id);
+    }
+
+    function uploadView(id) {
+      return `<div class="card">
+        <strong>Subir workflow (formato API do ComfyUI)</strong>
+        <p class="muted">No ComfyUI: ative o Dev mode e use <em>Save (API Format)</em>. Cole o JSON abaixo.</p>
+        <textarea id="wf-json" placeholder='{ "3": { "class_type": "...", "inputs": {...} } }'></textarea>
+        <div class="row"><button id="btn-upload">Enviar e detectar nós</button></div>
+        <div id="upload-msg" class="warn"></div>
+      </div>`;
+    }
+
+    async function enviarWorkflow(id) {
+      let wf;
+      try { wf = JSON.parse($('#wf-json').value); }
+      catch { $('#upload-msg').textContent = 'JSON inválido.'; return; }
+      try {
+        await api(`/api/projects/${id}/workflow`, {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(wf),
+        });
+        abrir(id);
+      } catch (e) {
+        $('#upload-msg').textContent = e.body?.detalhe || 'Falha ao enviar workflow.';
+      }
+    }
+
+    function nodeOptions(selected) {
+      return estado.nodes.map((n) =>
+        `<option value="${n.id}" ${n.id === selected ? 'selected' : ''}>${n.id} — ${n.class_type}</option>`).join('');
+    }
+
+    function refRow(label, role, ref) {
+      return `<div class="grid">
+        <span>${label}</span>
+        <select data-role="${role}" data-part="node">${nodeOptions(ref?.node)}</select>
+        <input data-role="${role}" data-part="input" value="${ref?.input || ''}" placeholder="input" />
+      </div>`;
+    }
+
+    function bindingView(parse) {
+      const b = estado.bindings || {};
+      const loras = (b.loras || []).map((l, i) => `
+        <div class="grid" data-lora="${i}">
+          <span>LoRA #${i + 1}</span>
+          <select data-lora-node="${i}">${nodeOptions(l.node)}</select>
+          <span class="row">
+            <input data-lora-name="${i}" value="${l.name_input || ''}" placeholder="name_input" style="width:90px" />
+            <input data-lora-weight="${i}" value="${l.weight_input || ''}" placeholder="weight_input" style="width:90px" />
+          </span>
+        </div>`).join('') || '<p class="muted">Nenhum LoRA detectado.</p>';
+
+      return `<div class="card">
+        <div class="row" style="justify-content:space-between">
+          <strong>Binding dos nós — projeto #${estado.id}</strong>
+          <button class="ghost" data-trocar>trocar workflow</button>
+        </div>
+        ${parse.warnings.length ? '<div class="warn">⚠ ' + parse.warnings.join('<br>⚠ ') + '</div>' : ''}
+        ${refRow('Prompt +', 'prompt_pos', b.prompt_pos)}
+        ${refRow('Prompt −', 'prompt_neg', b.prompt_neg)}
+        ${refRow('Imagem', 'image', b.image)}
+        ${refRow('Frames', 'frames', b.frames)}
+        ${refRow('FPS', 'fps', b.fps)}
+        <hr style="border-color:#21262d" />
+        ${loras}
+        <div class="row" style="margin-top:12px">
+          <button id="btn-salvar">Salvar binding</button>
+          <span id="save-msg" class="muted"></span>
+        </div>
+      </div>
+      <details class="card"><summary class="muted">Ver ${parse.nodes.length} nós do workflow</summary>
+        <table><tr><th>id</th><th>class_type</th><th>inputs literais</th></tr>
+        ${parse.nodes.map((n) => `<tr><td>${n.id}</td><td>${n.class_type}</td><td class="muted">${n.editableInputs.map((i) => i.name).join(', ')}</td></tr>`).join('')}
+        </table></details>`;
+    }
+
+    function ligarBindingHandlers(id) {
+      $('[data-trocar]')?.addEventListener('click', () => {
+        const ed = $('#editor'); ed.innerHTML = uploadView(id); $('#btn-upload').onclick = () => enviarWorkflow(id);
+      });
+      $('#btn-salvar').onclick = async () => {
+        const b = { loras: [] };
+        document.querySelectorAll('[data-role]').forEach((el) => {
+          const role = el.dataset.role, part = el.dataset.part;
+          b[role] = b[role] || {};
+          b[role][part] = el.value;
+        });
+        // remove refs vazias
+        for (const k of ['prompt_pos', 'prompt_neg', 'image', 'frames', 'fps']) {
+          if (!b[k] || !b[k].input) delete b[k];
+        }
+        document.querySelectorAll('[data-lora]').forEach((row) => {
+          const i = row.dataset.lora;
+          b.loras.push({
+            node: $(`[data-lora-node="${i}"]`).value,
+            name_input: $(`[data-lora-name="${i}"]`).value,
+            weight_input: $(`[data-lora-weight="${i}"]`).value,
+          });
+        });
+        try {
+          const res = await api(`/api/projects/${id}/bindings`, {
+            method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b),
+          });
+          $('#save-msg').textContent = `Salvo. Status: ${res.status}.`;
+          carregarLista();
+        } catch (e) { $('#save-msg').textContent = 'Falha ao salvar.'; }
+      };
+    }
+
+    // exige login
+    fetch('/api/auth/me').then((r) => { if (!r.ok) location.href = '/'; else carregarLista(); });
+  </script>
+</body>
+</html>

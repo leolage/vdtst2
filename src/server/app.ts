@@ -7,6 +7,7 @@ import fastifyStatic from '@fastify/static';
 import { config } from '../config/index.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
+import { projectRoutes } from './routes/projects.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -23,6 +24,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       ? true
       : { transport: { target: 'pino-pretty', options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' } } },
     trustProxy: true, // atrás de nginx/cloudflared
+    bodyLimit: 16 * 1024 * 1024, // workflows do ComfyUI podem ser grandes
   });
 
   await app.register(cookie);
@@ -49,6 +51,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(authRoutes, { prefix: '/api/auth' });
   await app.register(healthRoutes, { prefix: '/api' });
+  await app.register(projectRoutes, { prefix: '/api' });
 
   // UI estática (placeholder na Fase 1; React/Vite vem na Fase 5)
   await app.register(fastifyStatic, {
