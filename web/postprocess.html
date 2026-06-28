@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WAN Studio — Pós-processamento</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: system-ui, sans-serif; background: #0e1116; color: #e6edf3; margin: 0; }
+    .wrap { max-width: 960px; margin: 4vh auto; padding: 0 16px; }
+    a { color: #58a6ff; }
+    input, button, select { padding: 8px; border-radius: 8px; border: 1px solid #30363d; background: #161b22; color: #e6edf3; font: inherit; }
+    button { background: #238636; border-color: #238636; cursor: pointer; font-weight: 600; }
+    button.ghost { background: #21262d; border-color: #30363d; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; margin: 12px 0; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .muted { color: #8b949e; font-size: .9rem; }
+    .pill { font-size:.72rem; padding:1px 8px; border-radius:999px; border:1px solid #30363d; }
+    .step { border:1px solid #30363d; border-radius:8px; padding:6px 8px; margin:4px 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p><a href="/">← painel</a> · <a href="/app/">galeria</a></p>
+    <h1>Pós-processamento &amp; episódios</h1>
+    <p class="muted">Aplique trilha/narração, legendas, upscale e interpolação aos vídeos finais, e monte um episódio concatenando vários. Operações de ffmpeg podem demorar (especialmente interpolação).</p>
+
+    <div class="card">
+      <strong>1) Enviar asset (áudio/narração ou legenda .srt)</strong>
+      <div class="row" style="margin-top:8px">
+        <input type="file" id="asset-file" />
+        <button id="btn-asset">Enviar</button>
+        <span id="asset-msg" class="muted"></span>
+      </div>
+      <div id="assets" class="muted" style="margin-top:6px"></div>
+    </div>
+
+    <div class="card">
+      <strong>2) Pós-processar um vídeo</strong>
+      <div class="row" style="margin-top:8px">
+        <label>output <select id="pp-out"></select></label>
+        <select id="pp-tipo">
+          <option value="audio">+ áudio/narração</option>
+          <option value="legenda">+ legendas (.srt)</option>
+          <option value="scale">upscale/resize</option>
+          <option value="interpolate">interpolar fps</option>
+        </select>
+        <input id="pp-asset" placeholder="caminho do asset" style="width:240px" />
+        <input id="pp-w" type="number" placeholder="w" style="width:70px;display:none" />
+        <input id="pp-h" type="number" placeholder="h (-2)" style="width:70px;display:none" />
+        <input id="pp-fps" type="number" placeholder="fps" style="width:70px;display:none" />
+        <button id="btn-add-step" class="ghost">+ passo</button>
+      </div>
+      <div id="steps"></div>
+      <div class="row" style="margin-top:8px"><button id="btn-run">Processar</button><span id="pp-msg" class="muted"></span></div>
+    </div>
+
+    <div class="card">
+      <strong>3) Montar episódio (concatena finais na ordem)</strong>
+      <div class="row" style="margin-top:8px">
+        <input id="ep-nome" placeholder="nome do episódio" />
+        <input id="ep-ids" placeholder="ids de outputs em ordem, ex.: 12,15,18" style="width:260px" />
+        <button id="btn-ep">Montar</button>
+        <span id="ep-msg" class="muted"></span>
+      </div>
+      <div id="lista-ep" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const api = (u, o) => fetch(u, o).then(async (r) => { const b = r.headers.get('content-type')?.includes('json') ? await r.json() : null; if (!r.ok) throw Object.assign(new Error(), { status: r.status, b }); return b; });
+    let steps = [];
+    const assets = [];
+
+    function refreshTipo() {
+      const t = $('#pp-tipo').value;
+      $('#pp-asset').style.display = (t === 'audio' || t === 'legenda') ? '' : 'none';
+      $('#pp-w').style.display = t === 'scale' ? '' : 'none';
+      $('#pp-h').style.display = t === 'scale' ? '' : 'none';
+      $('#pp-fps').style.display = t === 'interpolate' ? '' : 'none';
+    }
+    $('#pp-tipo').onchange = refreshTipo; refreshTipo();
+
+    async function load() {
+      const outs = await api('/api/outputs');
+      $('#pp-out').innerHTML = outs.map((o) => `<option value="${o.id}">#${o.id} cena ${o.scene_id ?? '—'}${o.is_final ? ' (final)' : ''}${o.pos ? ' (pós)' : ''}</option>`).join('');
+      const eps = await api('/api/episodes');
+      $('#lista-ep').innerHTML = eps.length ? eps.map((e) => `<div class="step">🎬 ${e.nome} <span class="muted">${e.path.split('/').pop()}</span></div>`).join('') : '<span class="muted">nenhum episódio</span>';
+    }
+
+    $('#btn-asset').onclick = async () => {
+      const f = $('#asset-file').files[0]; if (!f) return;
+      const fd = new FormData(); fd.append('file', f);
+      $('#asset-msg').textContent = 'enviando…';
+      try { const r = await api('/api/assets', { method: 'POST', body: fd }); assets.push(r.path); $('#asset-msg').textContent = 'ok'; $('#assets').innerHTML = assets.map((a) => `<div>📎 <code>${a}</code></div>`).join(''); $('#pp-asset').value = r.path; }
+      catch { $('#asset-msg').textContent = 'falha'; }
+    };
+
+    $('#btn-add-step').onclick = () => {
+      const t = $('#pp-tipo').value;
+      let step;
+      if (t === 'audio' || t === 'legenda') { if (!$('#pp-asset').value) return; step = { tipo: t, asset: $('#pp-asset').value }; }
+      else if (t === 'scale') step = { tipo: 'scale', w: Number($('#pp-w').value || 1920), h: Number($('#pp-h').value || -2) };
+      else step = { tipo: 'interpolate', fps: Number($('#pp-fps').value || 30) };
+      steps.push(step);
+      $('#steps').innerHTML = steps.map((s, i) => `<div class="step">${i + 1}. ${JSON.stringify(s)} <a href="#" data-rm="${i}">remover</a></div>`).join('');
+      document.querySelectorAll('[data-rm]').forEach((a) => a.onclick = (e) => { e.preventDefault(); steps.splice(Number(a.dataset.rm), 1); $('#btn-add-step').click === null; $('#steps').innerHTML = steps.map((s, i) => `<div class="step">${i + 1}. ${JSON.stringify(s)}</div>`).join(''); });
+    };
+
+    $('#btn-run').onclick = async () => {
+      if (!steps.length) { $('#pp-msg').textContent = 'adicione ao menos um passo'; return; }
+      $('#pp-msg').textContent = 'processando (pode demorar)…';
+      try { const r = await api(`/api/outputs/${$('#pp-out').value}/postprocess`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ steps }) }); $('#pp-msg').textContent = `pronto: output #${r.id}`; steps = []; $('#steps').innerHTML = ''; load(); }
+      catch (e) { $('#pp-msg').textContent = 'falha: ' + (e.b?.detalhe || e.b?.error || ''); }
+    };
+
+    $('#btn-ep').onclick = async () => {
+      const ids = $('#ep-ids').value.split(',').map((x) => Number(x.trim())).filter(Boolean);
+      if (ids.length < 2) { $('#ep-msg').textContent = 'informe ao menos 2 outputs'; return; }
+      $('#ep-msg').textContent = 'montando…';
+      try { await api('/api/episodes', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nome: $('#ep-nome').value || 'episódio', output_ids: ids }) }); $('#ep-msg').textContent = 'episódio criado'; load(); }
+      catch (e) { $('#ep-msg').textContent = 'falha: ' + (e.b?.detalhe || e.b?.error || ''); }
+    };
+
+    fetch('/api/auth/me').then((r) => { if (!r.ok) location.href = '/'; else load(); });
+  </script>
+</body>
+</html>

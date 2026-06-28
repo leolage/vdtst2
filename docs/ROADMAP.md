@@ -66,11 +66,17 @@ imagem opcional, encadeamento desligado ou via outra forma de continuidade). O c
 - Presets de LoRA reutilizáveis entre cenas/projetos.
 - Validação prévia: checar se os nós exigidos existem em pelo menos um servidor.
 
-## Pós-processamento de vídeo
-- Trilha sonora / narração por cena.
-- Legendas automáticas.
-- Upscale/interpolação opcional como etapa final do pipeline.
-- Montagem final concatenando cenas num episódio (a "novela" completa).
+## Pós-processamento de vídeo — **entregue**
+Cadeia ffmpeg opcional sobre os vídeos finais (`/postprocess.html`, `/api/...`):
+- **trilha/narração** (mux de áudio), **legendas** (queima de .srt), **upscale/resize**
+  (scale) e **interpolação** de fps (minterpolate) — encadeáveis em sequência;
+- **montagem de episódio**: concatena vários outputs na ordem dada num único vídeo
+  (`episodes`), fechando a "novela" completa;
+- upload de assets (áudio/legenda) em `/api/assets`; construtores de comando puros e testados.
+
+Evoluções: legendas **automáticas** (ASR/transcrição), upscale por modelo (Real-ESRGAN/
+ComfyUI) em vez de scale do ffmpeg, e rodar o pós-processamento como job na fila (hoje é
+síncrono no request — operações longas seguram a conexão).
 
 ## Escala e operação
 - Auto-descoberta de nós ComfyUI e drain/cordon para manutenção.
