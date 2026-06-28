@@ -37,11 +37,15 @@
     "mysql2": "^3.11.0",
     "pino": "^9.3.2",
     "pino-pretty": "^11.2.2",
+    "ssh2": "^1.15.0",
+    "ws": "^8.18.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.14.0",
+    "@types/ssh2": "^1.15.0",
+    "@types/ws": "^8.5.12",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"

@@ -54,4 +54,16 @@ export const config = {
     botToken: process.env.TELEGRAM_BOT_TOKEN || '',
     chatId: process.env.TELEGRAM_CHAT_ID || '',
   },
+
+  crypto: {
+    sshKey: process.env.SSH_KEY_ENCRYPTION_KEY || '',
+  },
+
+  comfy: {
+    // timeout de uma geração antes de considerar travada (ms)
+    jobTimeoutMs: Number(process.env.COMFY_JOB_TIMEOUT_MS || 30 * 60 * 1000),
+    pollMs: Number(process.env.COMFY_POLL_MS || 3000),
+    // diretório de saída do ComfyUI no host remoto (para extrair frames lá)
+    outputDir: process.env.COMFY_OUTPUT_DIR || 'ComfyUI/output',
+  },
 };

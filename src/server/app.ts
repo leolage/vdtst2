@@ -12,6 +12,7 @@ import { projectRoutes } from './routes/projects.js';
 import { sceneRoutes } from './routes/scenes.js';
 import { imageRoutes } from './routes/images.js';
 import { catalogRoutes } from './routes/catalog.js';
+import { nodeRoutes } from './routes/nodes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -60,6 +61,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(sceneRoutes, { prefix: '/api' });
   await app.register(imageRoutes, { prefix: '/api' });
   await app.register(catalogRoutes, { prefix: '/api' });
+  await app.register(nodeRoutes, { prefix: '/api' });
 
   // UI estática (placeholder na Fase 1; React/Vite vem na Fase 5)
   await app.register(fastifyStatic, {

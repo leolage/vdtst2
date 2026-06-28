@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WAN Studio — Servidores ComfyUI</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: system-ui, sans-serif; background: #0e1116; color: #e6edf3; margin: 0; }
+    .wrap { max-width: 900px; margin: 4vh auto; padding: 0 16px; }
+    a { color: #58a6ff; }
+    input, button, textarea { padding: 8px; border-radius: 8px; border: 1px solid #30363d; background: #161b22; color: #e6edf3; font: inherit; }
+    button { background: #238636; border-color: #238636; cursor: pointer; font-weight: 600; }
+    button.ghost { background: #21262d; border-color: #30363d; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; margin: 12px 0; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .muted { color: #8b949e; font-size: .9rem; }
+    .pill { font-size:.72rem; padding:1px 8px; border-radius:999px; border:1px solid #30363d; }
+    .up { color:#3fb950 } .down { color:#f85149 }
+    textarea { width:100%; min-height: 90px; font-family: ui-monospace, monospace; }
+    label { font-size:.85rem }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p><a href="/">← painel</a></p>
+    <h1>Servidores ComfyUI</h1>
+    <p class="muted">Acesso por SSH (a chave privada é cifrada at-rest). O worker abre um túnel para a API e o agente valida a saúde periodicamente.</p>
+
+    <div class="card">
+      <strong>Adicionar servidor</strong>
+      <div class="row" style="margin-top:8px">
+        <input id="n-nome" placeholder="nome (ex.: gpu-1)" />
+        <input id="n-host" placeholder="ssh host/ip" />
+        <input id="n-port" type="number" placeholder="22" value="22" style="width:80px" />
+        <input id="n-user" placeholder="usuário ssh" />
+        <input id="n-comfy" type="number" placeholder="porta comfy" value="8188" style="width:120px" />
+        <input id="n-conc" type="number" placeholder="max_concurrent" value="1" style="width:130px" />
+      </div>
+      <label>Chave privada SSH</label>
+      <textarea id="n-key" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+      <div class="row"><button id="btn-add">Salvar servidor</button><span id="add-msg" class="muted"></span></div>
+    </div>
+
+    <div id="lista"></div>
+  </div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const api = (u, o) => fetch(u, o).then(async (r) => { const b = r.headers.get('content-type')?.includes('json') ? await r.json() : null; if (!r.ok) throw Object.assign(new Error(), { status: r.status, b }); return b; });
+
+    async function load() {
+      const nodes = await api('/api/nodes');
+      $('#lista').innerHTML = '<div class="card"><strong>Servidores</strong>' +
+        (nodes.length ? '' : '<p class="muted">nenhum</p>') +
+        nodes.map((n) => {
+          const loras = (() => { try { return JSON.parse(n.loras_json || '[]').length; } catch { return 0; } })();
+          const mods = (() => { try { return JSON.parse(n.modelos_json || '[]').length; } catch { return 0; } })();
+          return `<div style="border-top:1px solid #21262d;padding:8px 0">
+            <div class="row" style="justify-content:space-between">
+              <span><strong>${n.nome}</strong> <span class="muted">${n.ssh_user}@${n.ssh_host}:${n.ssh_port} → comfy ${n.comfy_port}</span></span>
+              <span class="${n.status === 'up' ? 'up' : 'down'}">${n.status}</span>
+            </div>
+            <div class="row muted" style="margin-top:4px">
+              <span class="pill">fila ${n.queue_len}/${n.max_concurrent}</span>
+              <span class="pill">vram ${n.vram_free ?? '?'} / ${n.vram_total ?? '?'} MiB</span>
+              <span class="pill">${loras} loras · ${mods} modelos</span>
+              ${n.ultimo_health ? '<span class="pill">health: ' + new Date(n.ultimo_health).toLocaleString() + '</span>' : ''}
+              <button class="ghost" data-test="${n.id}">testar agora</button>
+              <button class="ghost" data-del="${n.id}">excluir</button>
+            </div>
+            <div class="muted" id="test-${n.id}"></div>
+          </div>`;
+        }).join('') + '</div>';
+      document.querySelectorAll('[data-test]').forEach((b) => b.onclick = async () => {
+        $('#test-' + b.dataset.test).textContent = 'testando...';
+        try { const r = await api(`/api/nodes/${b.dataset.test}/test`, { method: 'POST' }); $('#test-' + b.dataset.test).textContent = r.ok ? `ok — fila ${r.queue_len}, ${r.loras} loras, ${r.modelos} modelos, vram ${r.vram_free}/${r.vram_total}` : 'falha: ' + r.erro; load(); }
+        catch (e) { $('#test-' + b.dataset.test).textContent = 'erro: ' + (e.b?.detalhe || e.status); }
+      });
+      document.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => { if (confirm('Excluir servidor?')) { await api('/api/nodes/' + b.dataset.del, { method: 'DELETE' }); load(); } });
+    }
+    $('#btn-add').onclick = async () => {
+      const body = { nome: $('#n-nome').value, ssh_host: $('#n-host').value, ssh_port: Number($('#n-port').value), ssh_user: $('#n-user').value, ssh_key: $('#n-key').value, comfy_port: Number($('#n-comfy').value), max_concurrent: Number($('#n-conc').value) };
+      try { await api('/api/nodes', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); $('#add-msg').textContent = 'salvo'; $('#n-key').value = ''; load(); }
+      catch (e) { $('#add-msg').textContent = e.b?.detalhe ? JSON.stringify(e.b.detalhe) : 'falha (a chave de cifragem está configurada?)'; }
+    };
+    fetch('/api/auth/me').then((r) => { if (!r.ok) location.href = '/'; else load(); });
+  </script>
+</body>
+</html>

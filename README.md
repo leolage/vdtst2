@@ -33,8 +33,11 @@ Tunnel para acesso externo · nós ComfyUI remotos via SSH · systemd · nginx l
 - **Fase 2** — upload de workflow (formato API), parser e auto-detecção, tela de binding.
 - **Fase 3** — cenas/prompts/LoRAs, biblioteca de imagens por categoria, explosão de jobs,
   catálogo com nota, tela de **debug + reenvio ajustado** e **encadeamento por frame golden**.
+- **Fase 4** — multi-nó SSH (chave cifrada, túnel, health por nvidia-smi/object_info),
+  roteamento por capacidade/carga, worker que injeta no workflow, submete ao ComfyUI,
+  baixa o vídeo, **extrai frames no nó remoto** e notifica o Telegram (vídeo/erro).
 
-Próxima: **Fase 4** (multi-nó SSH + worker: execução real no ComfyUI, download e frames).
+Próxima: **Fase 5** (galeria React) e **Fase 6** (agente LLM com decisões).
 Detalhes em `docs/ARCHITECTURE.md`.
 
 ## Desenvolvimento

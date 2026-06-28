@@ -70,6 +70,12 @@ at-rest (`SSH_KEY_ENCRYPTION_KEY` no `.env`).
 A extração de frames roda no próprio servidor ComfyUI (`FRAME_EXTRACT_ON_NODE=true`),
 então **instale `ffmpeg` em cada host ComfyUI** além da VM do sistema.
 
+Cadastre os servidores pela UI em **`/nodes.html`** (nome, host/porta SSH, usuário,
+porta do ComfyUI, `max_concurrent` e a chave privada SSH — cifrada at-rest). É obrigatório
+definir `SSH_KEY_ENCRYPTION_KEY` no `.env` antes de cadastrar. Use **testar agora** para
+validar a conexão e popular VRAM/LoRAs/checkpoints. O agente revalida a saúde
+periodicamente (`AGENT_HEALTH_MS`).
+
 ## Atualizações
 ```bash
 cd /opt/wan-studio

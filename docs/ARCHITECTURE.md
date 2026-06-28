@@ -151,8 +151,9 @@ Resumo (detalhe em [WORKFLOW-BINDING.md](./WORKFLOW-BINDING.md)):
 3. **Domínio** — CRUD projects/scenes/prompts, biblioteca de imagens por categoria,
    explosão em jobs, catálogo (nota/observação), tela de debug com **reenvio ajustado**,
    e **encadeamento por frame golden** (promover frame → biblioteca → input da próxima cena).
-4. **Multi-nó SSH + worker** — registro de nós, túnel, health, roteamento, submissão,
-   stitch ffmpeg, **extração de frames no nó remoto** e download para a pasta estruturada.
+4. **Multi-nó SSH + worker** ✅ — registro de nós (chave cifrada), túnel, health, roteamento,
+   submissão, **extração de frames no nó remoto**, download para a pasta estruturada e
+   notificação Telegram (vídeo pronto / erro).
 5. **Galeria** — player, thumbnails, aprovar/reprovar (frontend React/Vite).
 6. **Agente LLM** — loop, tool-use, guardrails, auditoria.
 7. **Agendamento** — regras de schedule, disparo automático.
